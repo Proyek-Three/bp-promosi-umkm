@@ -1,14 +1,14 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 
-	"github.com/Proyek-Three/bp-promosi-umkm/config"
-	"github.com/aiteung/musik"
 	inimodel "github.com/Proyek-Three/be-promosi-umkm/model"
 	cek "github.com/Proyek-Three/be-promosi-umkm/module"
+	"github.com/Proyek-Three/bp-promosi-umkm/config"
+	"github.com/aiteung/musik"
 	"github.com/gofiber/fiber/v2"
-
 )
 
 func Homepage(c *fiber.Ctx) error {
@@ -16,11 +16,11 @@ func Homepage(c *fiber.Ctx) error {
 	return c.JSON(ipaddr)
 }
 
-// func GetProduct(c *fiber.Ctx) error {
-// 	ps := cek.GetAllProduct(config.Ulbimongoconn, "restoran")
-// 	fmt.Println("Data yang akan dikirim: ", ps) // Tambahkan log ini
-// 	return c.JSON(ps)
-// }
+func GetProduct(c *fiber.Ctx) error {
+	ps := cek.GetAllProduct(config.Ulbimongoconn, "product")
+	fmt.Println("Data yang akan dikirim: ", ps) // Tambahkan log ini
+	return c.JSON(ps)
+}
 
 func InsertDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
