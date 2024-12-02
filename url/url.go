@@ -1,7 +1,7 @@
 package url
 
 import (
-	"github.com/Proyek-Three/bp-tubes/controller"
+	"github.com/Proyek-Three/bp-promosi-umkm/controller"
 	"github.com/gofiber/fiber/v2"
 )
 

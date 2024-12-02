@@ -16,6 +16,12 @@ func Homepage(c *fiber.Ctx) error {
 	return c.JSON(ipaddr)
 }
 
+// func GetProduct(c *fiber.Ctx) error {
+// 	ps := cek.GetAllProduct(config.Ulbimongoconn, "restoran")
+// 	fmt.Println("Data yang akan dikirim: ", ps) // Tambahkan log ini
+// 	return c.JSON(ps)
+// }
+
 func InsertDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var productdata inimodel.Product
