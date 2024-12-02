@@ -15,7 +15,7 @@ require (
 	aidanwoods.dev/go-paseto v1.3.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/aiteung/atapi v0.0.16 // indirect
-	github.com/aiteung/atmessage v0.0.1 // indirect
+	github.com/aiteung/atmessage v0.0.27 // indirect
 	github.com/aiteung/atmodel v0.0.4 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/fasthttp/websocket v1.5.3 // indirect
