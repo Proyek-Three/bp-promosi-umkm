@@ -16,7 +16,7 @@ func Homepage(c *fiber.Ctx) error {
 	return c.JSON(ipaddr)
 }
 
-func GetProduct(c *fiber.Ctx) error {
+func GetAllProduct(c *fiber.Ctx) error {
 	ps := cek.GetAllProduct(config.Ulbimongoconn, "product")
 	fmt.Println("Data yang akan dikirim: ", ps) // Tambahkan log ini
 	return c.JSON(ps)

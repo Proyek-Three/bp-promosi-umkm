@@ -1,12 +1,12 @@
 package controller
 
 import (
-	
 	"net/http"
+
 	inimodel "github.com/Proyek-Three/be-promosi-umkm/model"
 	cek "github.com/Proyek-Three/be-promosi-umkm/module"
-	"github.com/gofiber/fiber/v2"
 	"github.com/Proyek-Three/bp-promosi-umkm/config"
+	"github.com/gofiber/fiber/v2"
 )
 
 func Register(c *fiber.Ctx) error {
