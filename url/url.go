@@ -16,6 +16,7 @@ func Web(page *fiber.App) {
 	page.Delete("/", controller.Sink)
 	page.Options("/", controller.Sink)
 	page.Post("/users/register", controller.Register)
+	page.Post("/users/login", controller.Login)			
 	
 
 	page.Get("/checkip", controller.Homepage) //ujicoba panggil package musik

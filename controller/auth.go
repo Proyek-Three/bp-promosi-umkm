@@ -48,3 +48,43 @@ func Register(c *fiber.Ctx) error {
 		"data":    insertedID,
 	})
 }
+
+func Login(c *fiber.Ctx) error {
+	var loginData inimodel.User
+	if err := c.BodyParser(&loginData); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid request body",
+		})
+	}
+
+	// Check if the user exists
+	existingAdmin, err := cek.GetAdminByUsername(config.Ulbimongoconn, "Admin", loginData.Username)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Could not fetch user data",
+		})
+	}
+	if existingAdmin == nil {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"status":  http.StatusUnauthorized,
+			"message": "Invalid username or password",
+		})
+	}
+
+	
+	isPasswordValid := cek.ValidatePassword(existingAdmin.Password, loginData.Password)
+	if !isPasswordValid {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"status":  http.StatusUnauthorized,
+			"message": "Invalid username or password",
+		})
+	}
+
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"status":  http.StatusOK,
+		"message": "Login successful",
+	})
+}
