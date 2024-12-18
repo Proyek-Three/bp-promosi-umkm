@@ -19,7 +19,7 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	// Check if username already exists
-	existingAdmin, err := cek.GetAdminByUsername(config.Ulbimongoconn, "Admin", newAdmin.Username)
+	existingAdmin, err := cek.GetAdminByUsernameOrEmail(config.Ulbimongoconn, "Admin", newAdmin.Username, newAdmin.Email)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -58,33 +58,33 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if the user exists
-	existingAdmin, err := cek.GetAdminByUsername(config.Ulbimongoconn, "Admin", loginData.Username)
+	// Fetch user by username or email
+	existingAdmin, err := cek.GetAdminByUsernameOrEmail(config.Ulbimongoconn, "Admin", loginData.Username, loginData.Email)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
-			"message": "Could not fetch user data",
+			"message": "Error fetching user data",
 		})
 	}
 	if existingAdmin == nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"status":  http.StatusUnauthorized,
-			"message": "Invalid username or password",
+			"message": "Invalid credentials",
 		})
 	}
 
-	
-	isPasswordValid := cek.ValidatePassword(existingAdmin.Password, loginData.Password)
-	if !isPasswordValid {
+	// Validate password
+	if !cek.ValidatePassword(existingAdmin.Password, loginData.Password) {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"status":  http.StatusUnauthorized,
-			"message": "Invalid username or password",
+			"message": "Invalid credentials",
 		})
 	}
 
-
+	// Successful login
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":  http.StatusOK,
 		"message": "Login successful",
+		// Add token here in a real-world scenario
 	})
 }
