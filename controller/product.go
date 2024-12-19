@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/Proyek-Three/bp-promosi-umkm/config"
 	"github.com/aiteung/musik"
 	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func Homepage(c *fiber.Ctx) error {
@@ -19,6 +22,37 @@ func Homepage(c *fiber.Ctx) error {
 func GetAllProduct(c *fiber.Ctx) error {
 	ps := cek.GetAllProduct(config.Ulbimongoconn, "product")
 	fmt.Println("Data yang akan dikirim: ", ps) // Tambahkan log ini
+	return c.JSON(ps)
+}
+
+func GetProductID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Wrong parameter",
+		})
+	}
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid id parameter",
+		})
+	}
+	ps, err := cek.GetProductFromID(objID, config.Ulbimongoconn, "product")
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": fmt.Sprintf("No data found for id %s", id),
+			})
+		}
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": fmt.Sprintf("Error retrieving data for id %s", id),
+		})
+	}
 	return c.JSON(ps)
 }
 
@@ -40,7 +74,85 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":      http.StatusOK,
-		"message":     "Data product berhasil disimpan.",
+		"message":     "Product data saved successfully.",
 		"inserted_id": insertedID,
+	})
+}
+
+func UpdateDataProduct(c *fiber.Ctx) error {
+	db := config.Ulbimongoconn
+
+	// Get the ID from the URL parameter
+	id := c.Params("id")
+
+	// Parse the ID into an ObjectID
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": err.Error(),
+		})
+	}
+
+	// Parse the request body into a Product object
+	var dataproduct inimodel.Product
+	if err := c.BodyParser(&dataproduct); err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": err.Error(),
+		})
+	}
+
+	// Call the UpdateProduct function with the parsed ID and the Product object
+	err = cek.UpdateProduct(db, "product",
+		objectID,
+		dataproduct.ProductName,
+		dataproduct.Description,
+		dataproduct.Image,
+		dataproduct.Price,
+		dataproduct.CategoryName,
+		dataproduct.StoreName,
+		dataproduct.Address)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": err.Error(),
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"status":  http.StatusOK,
+		"message": "Product data successfully updated",
+	})
+}
+
+func DeleteProductByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Wrong parameter",
+		})
+	}
+
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid id parameter",
+		})
+	}
+
+	err = cek.DeleteProductByID(objID, config.Ulbimongoconn, "product")
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": fmt.Sprintf("Error deleting data for id %s", id),
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"status":  http.StatusOK,
+		"message": fmt.Sprintf("Product data with id %s deleted successfully", id),
 	})
 }

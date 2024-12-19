@@ -7,14 +7,6 @@ github.com/Azure/azure-sdk-for-go/sdk/azcore v1.1.2/go.mod h1:uGG2W01BaETf0Ozp+Q
 github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.1/go.mod h1:gLa1CL2RNE4s7M3yopJ/p0iq5DdY6Yv5ZUt9MTRZOQM=
 github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.0/go.mod h1:eWRD7oawr1Mu1sLCawqVc0CUiF43ia3qQMxLscsKQ9w=
 github.com/AzureAD/microsoft-authentication-library-for-go v0.8.1/go.mod h1:4qFor3D/HDsvBME35Xy9rwW9DecL+M2sNw1ybjPtwA0=
-github.com/Proyek-Three/be-promosi-umkm v0.0.9 h1:/dqciDdK8FFsTxN0QqHafxvSRdNQgg+rV7rcGIyHQ08=
-github.com/Proyek-Three/be-promosi-umkm v0.0.9/go.mod h1:v15qDiaPVoti6hQFwQdqPNbdfy5xMdDSyqsGZkFGdh4=
-github.com/Proyek-Three/be-promosi-umkm v0.0.11 h1:TuDEO5gKJ0+KOfc+T5hbVAyHEyrJew5TDReuivk9oqk=
-github.com/Proyek-Three/be-promosi-umkm v0.0.11/go.mod h1:v15qDiaPVoti6hQFwQdqPNbdfy5xMdDSyqsGZkFGdh4=
-github.com/Proyek-Three/be-promosi-umkm v0.1.0 h1:dWRISgRZCdxYKYaqdp3vCj+eEfhkk3gIH8yxVb+wdW4=
-github.com/Proyek-Three/be-promosi-umkm v0.1.0/go.mod h1:v15qDiaPVoti6hQFwQdqPNbdfy5xMdDSyqsGZkFGdh4=
-github.com/Proyek-Three/be-promosi-umkm v0.2.0 h1:aFVu0dhtHmiIITp5SWWmBBpKhuXrtEafm9Wggdgr3jc=
-github.com/Proyek-Three/be-promosi-umkm v0.2.0/go.mod h1:v15qDiaPVoti6hQFwQdqPNbdfy5xMdDSyqsGZkFGdh4=
 github.com/Proyek-Three/be-promosi-umkm v0.2.1 h1:6nw0Ha44+krR9OIuGYLqatP2f6sxWpxd0nc/28+U4Fs=
 github.com/Proyek-Three/be-promosi-umkm v0.2.1/go.mod h1:v15qDiaPVoti6hQFwQdqPNbdfy5xMdDSyqsGZkFGdh4=
 github.com/aiteung/atdb v0.1.7 h1:EV7vk5ld8i1wlrzf9N3FGDcvYvQz0dCnb0m2WCbRFOk=
