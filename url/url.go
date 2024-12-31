@@ -19,6 +19,7 @@ func Web(page *fiber.App) {
 	// AUTH
 	page.Post("/users/register", controller.Register)
 	page.Post("/users/login", controller.Login)
+	page.Post("/admin/login", controller.LoginAdmin)
 
 	// PRODUCT
 	page.Post("/insert/product", controller.InsertDataProduct)        //menambahkan data product

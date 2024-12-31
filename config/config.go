@@ -8,4 +8,10 @@ var Iteung = fiber.Config{
 	StrictRouting: true,
 	ServerHeader:  "Iteung",
 	AppName:       "Message Router",
+
+	
+}
+
+func InitServer() *fiber.App {
+	return fiber.New()
 }

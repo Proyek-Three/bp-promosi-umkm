@@ -9,6 +9,8 @@ github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.0/go.mod h1:eWRD7oawr1Mu1sLC
 github.com/AzureAD/microsoft-authentication-library-for-go v0.8.1/go.mod h1:4qFor3D/HDsvBME35Xy9rwW9DecL+M2sNw1ybjPtwA0=
 github.com/Proyek-Three/be-promosi-umkm v0.2.1 h1:6nw0Ha44+krR9OIuGYLqatP2f6sxWpxd0nc/28+U4Fs=
 github.com/Proyek-Three/be-promosi-umkm v0.2.1/go.mod h1:v15qDiaPVoti6hQFwQdqPNbdfy5xMdDSyqsGZkFGdh4=
+github.com/Proyek-Three/be-promosi-umkm v0.2.4 h1:/zKEwwmUsxU3wW0nE4o6ZPXO0WOEGx1GO3/TquHnIuY=
+github.com/Proyek-Three/be-promosi-umkm v0.2.4/go.mod h1:HLAQc+YuwmAxUN4YLyO1eR51bRJmPIM1JSRZ6p/Ud94=
 github.com/aiteung/atdb v0.1.7 h1:EV7vk5ld8i1wlrzf9N3FGDcvYvQz0dCnb0m2WCbRFOk=
 github.com/aiteung/atdb v0.1.7/go.mod h1:pxLum1XaWHcrspqu3n8zHKix2h5czOIiwAgIMKl3cX0=
 github.com/aiteung/atmodel v0.0.4 h1:jz0/jPfVjiNxMGaP8Rfl+14cgJZ8uu1vg3a46L/nzBo=
