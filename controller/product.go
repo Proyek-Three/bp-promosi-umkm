@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-
 	inimodel "github.com/Proyek-Three/be-promosi-umkm/model"
 	cek "github.com/Proyek-Three/be-promosi-umkm/module"
 	"github.com/Proyek-Three/bp-promosi-umkm/config"
 	"github.com/aiteung/musik"
+	
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -79,52 +79,44 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	})
 }
 
-func UpdateDataProduct(c *fiber.Ctx) error {
-	db := config.Ulbimongoconn
+func UpdateProduct(c *fiber.Ctx) error {
+	var input struct {
+		ProductName  string            `json:"product_name" binding:"required"`
+		Description  string            `json:"description" binding:"required"`
+		Image        string            `json:"image" binding:"required"`
+		Price        float64           `json:"price" binding:"required"`
+		CategoryName inimodel.Category    `json:"category_name" binding:"required"`
+		StoreName    inimodel.Store       `json:"store_name" binding:"required"`
+		Address      inimodel.Store       `json:"address" binding:"required"`
+	}
 
-	// Get the ID from the URL parameter
+	// Binding the incoming JSON request to the struct
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Parsing ID from URL
 	id := c.Params("id")
-
-	// Parse the ID into an ObjectID
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
-		})
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID format"})
 	}
 
-	// Parse the request body into a Product object
-	var dataproduct inimodel.Product
-	if err := c.BodyParser(&dataproduct); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
-		})
-	}
+	// Get MongoDB database connection (you might already have a method for this)
+	db := config.Ulbimongoconn // Replace with your actual method to get the DB connection
 
-	// Call the UpdateProduct function with the parsed ID and the Product object
-	err = cek.UpdateProduct(db, "product",
-		objectID,
-		dataproduct.ProductName,
-		dataproduct.Description,
-		dataproduct.Image,
-		dataproduct.Price,
-		dataproduct.CategoryName,
-		dataproduct.StoreName,
-		dataproduct.Address)
+	// Call the repository function to update the product (passing the database instance)
+	err = cek.UpdateProduct(db, "product", objectID, input.ProductName, input.Description, input.Image, input.Price, input.CategoryName, input.StoreName, input.Address)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
-		})
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status":  http.StatusOK,
-		"message": "Product data successfully updated",
-	})
+	// Return success response
+	return c.Status(http.StatusOK).JSON(fiber.Map{"message": "Product updated successfully"})
 }
+
+
+
 
 func DeleteProductByID(c *fiber.Ctx) error {
 	id := c.Params("id")
