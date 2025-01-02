@@ -28,5 +28,12 @@ func Web(page *fiber.App) {
 	page.Put("/update/product/:id", controller.UpdateDataProduct)     //update data product
 	page.Delete("/product//delete/:id", controller.DeleteProductByID) //delete data product
 
+	// CATEGORY
+	page.Post("/insert/category", controller.InsertCategory)         
+	page.Get("/category", controller.GetAllCategory)                
+	page.Get("/category/:id", controller.GetCategoryByID)           
+	page.Put("/update/category/:id", controller.UpdateCategory)     
+	page.Delete("/category/delete/:id", controller.DeleteCategoryByID) 
+
 	// page.Get("/docs/*", swagger.HandlerDefault)
 }
