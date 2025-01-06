@@ -59,12 +59,26 @@ func GetProductID(c *fiber.Ctx) error {
 func InsertDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var productdata inimodel.Product
+
+	// Parse JSON input ke struct
 	if err := c.BodyParser(&productdata); err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
 			"message": err.Error(),
 		})
 	}
+
+	// Generate ObjectID baru untuk kategori jika ID tidak ada
+	if productdata.Category.ID.IsZero() {
+		productdata.Category.ID = primitive.NewObjectID()
+	}
+
+	// Generate ObjectID baru untuk toko jika ID tidak ada
+	if productdata.Store.ID.IsZero() {
+		productdata.Store.ID = primitive.NewObjectID()
+	}
+
+	// Insert data produk ke database
 	insertedID, err := cek.InsertProduct(db, "product", productdata)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -72,12 +86,17 @@ func InsertDataProduct(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
+
+	// Return response berhasil
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":      http.StatusOK,
 		"message":     "Product data saved successfully.",
-		"inserted_id": insertedID,
+		"inserted_id": insertedID.Hex(),
+		"category_id": productdata.Category.ID.Hex(),
+		"store_id":    productdata.Store.ID.Hex(),
 	})
 }
+
 
 func UpdateProduct(c *fiber.Ctx) error {
 	var input struct {
