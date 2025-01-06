@@ -8,6 +8,7 @@ import (
 	cek "github.com/Proyek-Three/be-promosi-umkm/module"
 	"github.com/Proyek-Three/bp-promosi-umkm/config"
 	"github.com/aiteung/musik"
+	"go.mongodb.org/mongo-driver/bson"
 	
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -68,9 +69,24 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate ObjectID baru untuk kategori jika ID tidak ada
-	if productdata.Category.ID.IsZero() {
+	// Cek apakah kategori ID diberikan
+	if !productdata.Category.ID.IsZero() {
+		// Cari kategori berdasarkan ID
+		var category inimodel.Category
+		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Category ID not found.",
+			})
+		}
+
+		// Set category_name berdasarkan hasil pencarian
+		productdata.Category.CategoryName = category.CategoryName
+	} else {
+		// Jika tidak ada ID kategori, buat ID baru dan tambahkan nama kategori default
 		productdata.Category.ID = primitive.NewObjectID()
+		productdata.Category.CategoryName = "Default Category"
 	}
 
 	// Generate ObjectID baru untuk toko jika ID tidak ada
@@ -94,8 +110,10 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		"inserted_id": insertedID.Hex(),
 		"category_id": productdata.Category.ID.Hex(),
 		"store_id":    productdata.Store.ID.Hex(),
+		"category_name": productdata.Category.CategoryName,
 	})
 }
+
 
 
 func UpdateProduct(c *fiber.Ctx) error {
