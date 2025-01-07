@@ -26,7 +26,7 @@ func Web(page *fiber.App) {
 	page.Get("/product", controller.GetAllProduct)                    //menampilkan semua data product
 	page.Get("/product/:id", controller.GetProductID)                 //menampilkan data product berdasarkan id
 	page.Put("/update/product/:id", controller.UpdateProduct)     //update data product
-	page.Delete("/product//delete/:id", controller.DeleteProductByID) //delete data product
+	page.Delete("/product/delete/:id", controller.DeleteProductByID) //delete data product
 
 	// CATEGORY
 	page.Post("/insert/category", controller.InsertCategory)         
