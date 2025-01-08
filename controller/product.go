@@ -117,40 +117,83 @@ func InsertDataProduct(c *fiber.Ctx) error {
 
 
 func UpdateProduct(c *fiber.Ctx) error {
-	var input struct {
-		ProductName  string            `json:"product_name" binding:"required"`
-		Description  string            `json:"description" binding:"required"`
-		Image        string            `json:"image" binding:"required"`
-		Price        float64           `json:"price" binding:"required"`
-		CategoryName inimodel.Category    `json:"category_name" binding:"required"`
-		StoreName    inimodel.Store       `json:"store_name" binding:"required"`
-		Address      inimodel.Store       `json:"address" binding:"required"`
+	db := config.Ulbimongoconn
+	var productdata inimodel.Product
+
+	// Parsing JSON input ke struct
+	if err := c.BodyParser(&productdata); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": err.Error(),
+		})
 	}
 
-	// Binding the incoming JSON request to the struct
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	// Parsing ID from URL
+	// Parsing ID dari parameter URL
 	id := c.Params("id")
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID format"})
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid ID format",
+		})
 	}
 
-	// Get MongoDB database connection (you might already have a method for this)
-	db := config.Ulbimongoconn // Replace with your actual method to get the DB connection
+	// Validasi dan pembaruan kategori
+	if !productdata.Category.ID.IsZero() {
+		var category inimodel.Category
+		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Category ID not found.",
+			})
+		}
+		productdata.Category.CategoryName = category.CategoryName
+	} else {
+		productdata.Category.ID = primitive.NewObjectID()
+		productdata.Category.CategoryName = "Default Category"
+	}
 
-	// Call the repository function to update the product (passing the database instance)
-	err = cek.UpdateProduct(db, "product", objectID, input.ProductName, input.Description, input.Image, input.Price, input.CategoryName, input.StoreName, input.Address)
+	// Validasi dan pembaruan toko
+	if productdata.Store.ID.IsZero() {
+		productdata.Store.ID = primitive.NewObjectID()
+	}
+
+	// Persiapan data untuk pembaruan
+	update := bson.M{
+		"$set": bson.M{
+			"product_name":  productdata.ProductName,
+			"description":   productdata.Description,
+			"image":         productdata.Image,
+			"price":         productdata.Price,
+			"category": bson.M{
+				"id":            productdata.Category.ID,
+				"category_name": productdata.Category.CategoryName,
+			},
+			"store": bson.M{
+				"id":      productdata.Store.ID,
+				"store_name": productdata.Store.StoreName,
+				"address": productdata.Store.Address,
+			},
+		},
+	}
+
+	// Melakukan pembaruan pada dokumen berdasarkan ID
+	_, err = db.Collection("product").UpdateOne(c.Context(), bson.M{"_id": objectID}, update)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": err.Error(),
+		})
 	}
 
-	// Return success response
-	return c.Status(http.StatusOK).JSON(fiber.Map{"message": "Product updated successfully"})
+	// Mengembalikan respons berhasil
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"status":  http.StatusOK,
+		"message": "Product updated successfully.",
+	})
 }
+
 
 
 
