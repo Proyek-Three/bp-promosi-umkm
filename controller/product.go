@@ -71,7 +71,6 @@ func InsertDataProduct(c *fiber.Ctx) error {
 
 	// Cek apakah kategori ID diberikan
 	if !productdata.Category.ID.IsZero() {
-		// Cari kategori berdasarkan ID
 		var category inimodel.Category
 		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category)
 		if err != nil {
@@ -80,18 +79,29 @@ func InsertDataProduct(c *fiber.Ctx) error {
 				"message": "Category ID not found.",
 			})
 		}
-
-		// Set category_name berdasarkan hasil pencarian
 		productdata.Category.CategoryName = category.CategoryName
 	} else {
-		// Jika tidak ada ID kategori, buat ID baru dan tambahkan nama kategori default
 		productdata.Category.ID = primitive.NewObjectID()
 		productdata.Category.CategoryName = "Default Category"
 	}
 
-	// Generate ObjectID baru untuk toko jika ID tidak ada
-	if productdata.Store.ID.IsZero() {
-		productdata.Store.ID = primitive.NewObjectID()
+	// Cek apakah store ID diberikan
+	if !productdata.Store.ID.IsZero() {
+		var store inimodel.Store
+		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": productdata.Store.ID}).Decode(&store)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Store ID not found.",
+			})
+		}
+		productdata.Store.StoreName = store.StoreName
+		productdata.Store.Address = store.Address
+	} else {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Store ID is required.",
+		})
 	}
 
 	// Insert data produk ke database
@@ -105,14 +115,17 @@ func InsertDataProduct(c *fiber.Ctx) error {
 
 	// Return response berhasil
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status":      http.StatusOK,
-		"message":     "Product data saved successfully.",
-		"inserted_id": insertedID.Hex(),
-		"category_id": productdata.Category.ID.Hex(),
-		"store_id":    productdata.Store.ID.Hex(),
+		"status":        http.StatusOK,
+		"message":       "Product data saved successfully.",
+		"inserted_id":   insertedID.Hex(),
+		"category_id":   productdata.Category.ID.Hex(),
+		"store_id":      productdata.Store.ID.Hex(),
 		"category_name": productdata.Category.CategoryName,
+		"store_name":    productdata.Store.StoreName,
+		"address":       productdata.Store.Address,
 	})
 }
+
 
 
 
@@ -138,7 +151,7 @@ func UpdateProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi dan pembaruan kategori
+	// Validasi dan pembaruan kategori berdasarkan ID
 	if !productdata.Category.ID.IsZero() {
 		var category inimodel.Category
 		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category)
@@ -150,30 +163,46 @@ func UpdateProduct(c *fiber.Ctx) error {
 		}
 		productdata.Category.CategoryName = category.CategoryName
 	} else {
-		productdata.Category.ID = primitive.NewObjectID()
-		productdata.Category.CategoryName = "Default Category"
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Category ID cannot be empty.",
+		})
 	}
 
-	// Validasi dan pembaruan toko
-	if productdata.Store.ID.IsZero() {
-		productdata.Store.ID = primitive.NewObjectID()
+	// Validasi dan pembaruan toko berdasarkan ID
+	if !productdata.Store.ID.IsZero() {
+		var store inimodel.Store
+		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": productdata.Store.ID}).Decode(&store)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Store ID not found.",
+			})
+		}
+		productdata.Store.StoreName = store.StoreName
+		productdata.Store.Address = store.Address
+	} else {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Store ID cannot be empty.",
+		})
 	}
 
 	// Persiapan data untuk pembaruan
 	update := bson.M{
 		"$set": bson.M{
-			"product_name":  productdata.ProductName,
-			"description":   productdata.Description,
-			"image":         productdata.Image,
-			"price":         productdata.Price,
+			"product_name": productdata.ProductName,
+			"description":  productdata.Description,
+			"image":        productdata.Image,
+			"price":        productdata.Price,
 			"category": bson.M{
 				"id":            productdata.Category.ID,
 				"category_name": productdata.Category.CategoryName,
 			},
 			"store": bson.M{
-				"id":      productdata.Store.ID,
+				"id":         productdata.Store.ID,
 				"store_name": productdata.Store.StoreName,
-				"address": productdata.Store.Address,
+				"address":    productdata.Store.Address,
 			},
 		},
 	}
@@ -193,6 +222,7 @@ func UpdateProduct(c *fiber.Ctx) error {
 		"message": "Product updated successfully.",
 	})
 }
+
 
 
 
