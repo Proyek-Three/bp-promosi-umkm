@@ -188,18 +188,8 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update data produk ke database dengan argumen terpisah
-	err = cek.UpdateProduct(
-		db,
-		"product",
-		productID,
-		updatedProduct.ProductName,
-		updatedProduct.Description,
-		updatedProduct.Image,
-		updatedProduct.Price,
-		updatedProduct.Category,
-		updatedProduct.Store.ID,
-	)
+	// Panggil fungsi UpdateProduct
+	err = cek.UpdateProduct(db, "product", productID, updatedProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -219,6 +209,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		"address":       updatedProduct.Store.Address,
 	})
 }
+
 
 
 
