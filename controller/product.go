@@ -129,86 +129,77 @@ func InsertDataProduct(c *fiber.Ctx) error {
 
 
 
-func UpdateProduct(c *fiber.Ctx) error {
+func UpdateDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
-	var productdata inimodel.Product
+	var updatedProduct inimodel.Product
 
-	// Parsing JSON input ke struct
-	if err := c.BodyParser(&productdata); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
+	// Parse JSON input ke struct
+	if err := c.BodyParser(&updatedProduct); err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
 			"message": err.Error(),
 		})
 	}
 
-	// Parsing ID dari parameter URL
-	id := c.Params("id")
-	objectID, err := primitive.ObjectIDFromHex(id)
+	// Cek apakah ID produk diberikan
+	productIDParam := c.Params("id")
+	productID, err := primitive.ObjectIDFromHex(productIDParam)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Invalid ID format",
+			"message": "Invalid product ID.",
 		})
 	}
 
-	// Validasi dan pembaruan kategori berdasarkan ID
-	if !productdata.Category.ID.IsZero() {
+	// Validasi kategori ID
+	if !updatedProduct.Category.ID.IsZero() {
 		var category inimodel.Category
-		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category)
+		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": updatedProduct.Category.ID}).Decode(&category)
 		if err != nil {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
 				"status":  http.StatusNotFound,
 				"message": "Category ID not found.",
 			})
 		}
-		productdata.Category.CategoryName = category.CategoryName
+		updatedProduct.Category.CategoryName = category.CategoryName
 	} else {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Category ID cannot be empty.",
+			"message": "Category ID is required.",
 		})
 	}
 
-	// Validasi dan pembaruan toko berdasarkan ID
-	if !productdata.Store.ID.IsZero() {
+	// Validasi store ID
+	if !updatedProduct.Store.ID.IsZero() {
 		var store inimodel.Store
-		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": productdata.Store.ID}).Decode(&store)
+		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": updatedProduct.Store.ID}).Decode(&store)
 		if err != nil {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
 				"status":  http.StatusNotFound,
 				"message": "Store ID not found.",
 			})
 		}
-		productdata.Store.StoreName = store.StoreName
-		productdata.Store.Address = store.Address
+		updatedProduct.Store.StoreName = store.StoreName
+		updatedProduct.Store.Address = store.Address
 	} else {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Store ID cannot be empty.",
+			"message": "Store ID is required.",
 		})
 	}
 
-	// Persiapan data untuk pembaruan
-	update := bson.M{
-		"$set": bson.M{
-			"product_name": productdata.ProductName,
-			"description":  productdata.Description,
-			"image":        productdata.Image,
-			"price":        productdata.Price,
-			"category": bson.M{
-				"id":            productdata.Category.ID,
-				"category_name": productdata.Category.CategoryName,
-			},
-			"store": bson.M{
-				"id":         productdata.Store.ID,
-				"store_name": productdata.Store.StoreName,
-				"address":    productdata.Store.Address,
-			},
-		},
-	}
-
-	// Melakukan pembaruan pada dokumen berdasarkan ID
-	_, err = db.Collection("product").UpdateOne(c.Context(), bson.M{"_id": objectID}, update)
+	// Update data produk ke database dengan argumen terpisah
+	err = cek.UpdateProduct(
+		db,
+		"product",
+		productID,
+		updatedProduct.ProductName,
+		updatedProduct.Description,
+		updatedProduct.Image,
+		updatedProduct.Price,
+		updatedProduct.Category,
+		updatedProduct.Store.ID,
+	)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -216,12 +207,20 @@ func UpdateProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Mengembalikan respons berhasil
+	// Return response berhasil
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status":  http.StatusOK,
-		"message": "Product updated successfully.",
+		"status":        http.StatusOK,
+		"message":       "Product data updated successfully.",
+		"product_id":    productID.Hex(),
+		"category_id":   updatedProduct.Category.ID.Hex(),
+		"store_id":      updatedProduct.Store.ID.Hex(),
+		"category_name": updatedProduct.Category.CategoryName,
+		"store_name":    updatedProduct.Store.StoreName,
+		"address":       updatedProduct.Store.Address,
 	})
 }
+
+
 
 
 
