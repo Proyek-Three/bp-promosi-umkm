@@ -47,10 +47,10 @@ func Web(page *fiber.App) {
 
 	// Data Users
 	
-	page.Post("/insert/user", controller.InsertUser)         
+	page.Post("/insert/user", controller.InsertDataUser)         
 	page.Get("/users", controller.GetAllUsers)              
 	page.Get("/user/:id", controller.GetUserByID)           
-	page.Put("/update/user/:id", controller.UpdateUser)     
+	page.Put("/update/user/:id", controller.UpdateDataUser)     
 	page.Delete("/user/delete/:id", controller.DeleteUserByID) 
 	
 

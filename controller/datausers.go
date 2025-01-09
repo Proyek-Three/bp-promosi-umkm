@@ -58,18 +58,29 @@ func GetUserByID(c *fiber.Ctx) error {
 	return c.JSON(user)
 }
 
-func InsertUser(c *fiber.Ctx) error {
+func InsertDataUser(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
-	var userdata inimodel.DataUsers
+	var userData inimodel.DataUsers
 
-	if err := c.BodyParser(&userdata); err != nil {
+	// Parse JSON input ke struct
+	if err := c.BodyParser(&userData); err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
 			"message": err.Error(),
 		})
 	}
 
-	insertedID, err := cek.InsertUser(db, "users", userdata)
+	// Validasi Store ID
+	storeID := userData.Store.ID
+	if storeID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Store ID is required.",
+		})
+	}
+
+	// Panggil fungsi InsertUser
+	insertedID, err := cek.InsertUser(db, "users", userData, storeID)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -77,6 +88,7 @@ func InsertUser(c *fiber.Ctx) error {
 		})
 	}
 
+	// Return response berhasil
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":      http.StatusOK,
 		"message":     "User data saved successfully.",
@@ -84,10 +96,11 @@ func InsertUser(c *fiber.Ctx) error {
 	})
 }
 
-func UpdateUser(c *fiber.Ctx) error {
+func UpdateDataUser(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var updatedUser inimodel.DataUsers
 
+	// Parse JSON input ke struct
 	if err := c.BodyParser(&updatedUser); err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -95,6 +108,7 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
+	// Cek apakah ID user diberikan
 	userIDParam := c.Params("id")
 	userID, err := primitive.ObjectIDFromHex(userIDParam)
 	if err != nil {
@@ -104,7 +118,17 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	err = cek.UpdateUser(db, "users", userID, updatedUser)
+	// Validasi Store ID
+	storeID := updatedUser.Store.ID
+	if storeID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Store ID is required.",
+		})
+	}
+
+	// Panggil fungsi UpdateUser
+	err = cek.UpdateUser(db, "users", userID, updatedUser, storeID)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -112,10 +136,11 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
+	// Return response berhasil
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status":    http.StatusOK,
-		"message":   "User data updated successfully.",
-		"user_id":   userID.Hex(),
+		"status":  http.StatusOK,
+		"message": "User data updated successfully.",
+		"user_id": userID.Hex(),
 	})
 }
 
