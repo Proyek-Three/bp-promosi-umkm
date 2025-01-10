@@ -1,6 +1,8 @@
 package config
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+)
 
 var Iteung = fiber.Config{
 	Prefork:       false,
@@ -14,4 +16,10 @@ var Iteung = fiber.Config{
 
 func InitServer() *fiber.App {
 	return fiber.New()
+}
+func main() {
+	app := fiber.New()
+
+	// Jalankan server
+	app.Listen(":5501")
 }
