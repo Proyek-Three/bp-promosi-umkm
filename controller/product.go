@@ -69,7 +69,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Cek apakah kategori ID diberikan
+	// Validasi Category ID
 	if !productdata.Category.ID.IsZero() {
 		var category inimodel.Category
 		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category)
@@ -85,7 +85,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		productdata.Category.CategoryName = "Default Category"
 	}
 
-	// Cek apakah store ID diberikan
+	// Validasi Store ID
 	if !productdata.Store.ID.IsZero() {
 		var store inimodel.Store
 		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": productdata.Store.ID}).Decode(&store)
@@ -104,7 +104,25 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Insert data produk ke database
+	// Validasi Status ID
+	if !productdata.Status.ID.IsZero() {
+		var status inimodel.Status
+		err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": productdata.Status.ID}).Decode(&status)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Status ID not found.",
+			})
+		}
+		productdata.Status.Status = status.Status
+	} else {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Status ID is required.",
+		})
+	}
+
+	// Insert produk ke database
 	insertedID, err := cek.InsertProduct(db, "product", productdata)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -120,11 +138,14 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		"inserted_id":   insertedID.Hex(),
 		"category_id":   productdata.Category.ID.Hex(),
 		"store_id":      productdata.Store.ID.Hex(),
+		"status_id":     productdata.Status.ID.Hex(),
 		"category_name": productdata.Category.CategoryName,
 		"store_name":    productdata.Store.StoreName,
 		"address":       productdata.Store.Address,
+		"status_name":   productdata.Status.Status,
 	})
 }
+
 
 
 
@@ -141,7 +162,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Cek apakah ID produk diberikan
+	// Validasi ID produk
 	productIDParam := c.Params("id")
 	productID, err := primitive.ObjectIDFromHex(productIDParam)
 	if err != nil {
@@ -151,7 +172,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi kategori ID
+	// Validasi Category ID
 	if !updatedProduct.Category.ID.IsZero() {
 		var category inimodel.Category
 		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": updatedProduct.Category.ID}).Decode(&category)
@@ -169,7 +190,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi store ID
+	// Validasi Store ID
 	if !updatedProduct.Store.ID.IsZero() {
 		var store inimodel.Store
 		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": updatedProduct.Store.ID}).Decode(&store)
@@ -188,7 +209,25 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Panggil fungsi UpdateProduct
+	// Validasi Status ID
+	if !updatedProduct.Status.ID.IsZero() {
+		var status inimodel.Status
+		err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": updatedProduct.Status.ID}).Decode(&status)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Status ID not found.",
+			})
+		}
+		updatedProduct.Status.Status = status.Status
+	} else {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Status ID is required.",
+		})
+	}
+
+	// Update data produk
 	err = cek.UpdateProduct(db, "product", productID, updatedProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -204,11 +243,14 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		"product_id":    productID.Hex(),
 		"category_id":   updatedProduct.Category.ID.Hex(),
 		"store_id":      updatedProduct.Store.ID.Hex(),
+		"status_id":     updatedProduct.Status.ID.Hex(),
 		"category_name": updatedProduct.Category.CategoryName,
 		"store_name":    updatedProduct.Store.StoreName,
 		"address":       updatedProduct.Store.Address,
+		"status_name":   updatedProduct.Status.Status,
 	})
 }
+
 
 
 

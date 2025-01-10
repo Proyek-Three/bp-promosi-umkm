@@ -52,6 +52,15 @@ func Web(page *fiber.App) {
 	page.Get("/user/:id", controller.GetUserByID)           
 	page.Put("/update/user/:id", controller.UpdateDataUser)     
 	page.Delete("/user/delete/:id", controller.DeleteUserByID) 
+
+	// Status
+
+	page.Post("/insert/status", controller.InsertStatus)         
+	page.Get("/statuses", controller.GetAllStatus)                
+	page.Get("/status/:id", controller.GetStatusByID)               
+	page.Put("/update/status/:id", controller.UpdateStatus)     
+	page.Delete("/status/delete/:id", controller.DeleteStatusByID)  
+
 	
 
 	// page.Get("/docs/*", swagger.HandlerDefault)
