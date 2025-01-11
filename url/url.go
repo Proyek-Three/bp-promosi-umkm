@@ -43,7 +43,7 @@ func Web(page *fiber.App) {
 	page.Get("/store/:id", controller.GetStoreByID)            
 	page.Put("/update/store/:id", controller.UpdateStore)      
 	page.Delete("/store/delete/:id", controller.DeleteStoreByID)   
-
+	
 
 	// Data Users
 	
