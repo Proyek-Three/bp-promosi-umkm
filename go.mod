@@ -3,7 +3,7 @@ module github.com/Proyek-Three/bp-promosi-umkm
 go 1.23.3
 
 require (
-	github.com/Proyek-Three/be-promosi-umkm v0.4.2
+	github.com/Proyek-Three/be-promosi-umkm v0.4.5
 	github.com/aiteung/atdb v0.1.7
 	github.com/aiteung/musik v0.0.5
 	github.com/gofiber/fiber/v2 v2.52.5
@@ -20,6 +20,7 @@ require (
 	github.com/fasthttp/websocket v1.5.3 // indirect
 	github.com/go-sql-driver/mysql v1.7.1 // indirect
 	github.com/gofiber/websocket/v2 v2.2.1 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
