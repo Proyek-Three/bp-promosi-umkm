@@ -19,7 +19,7 @@ var origins = []string{
 	"http://127.0.0.1:5500",
 	"http://127.0.0.1:5501",
 	"http://127.0.0.1:8080",
-	"https://Proyek-Three.github.io",
+	"https://proyek-three.github.io",
 	"http://127.0.0.1:44857",
 }
 
