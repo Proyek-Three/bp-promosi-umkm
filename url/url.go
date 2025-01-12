@@ -3,6 +3,7 @@ package url
 import (
 	"github.com/Proyek-Three/bp-promosi-umkm/controller"
 	"github.com/gofiber/fiber/v2"
+	"github.com/Proyek-Three/bp-promosi-umkm/middleware"
 )
 
 func Web(page *fiber.App) {
@@ -22,7 +23,8 @@ func Web(page *fiber.App) {
 	page.Post("/register/admin", controller.RegisterAdmin)
 	page.Post("/admin/login", controller.LoginAdmin)
 	page.Post("/admin/logout", controller.Logout)
-	page.Get("dashboard", controller.DashboardPage)
+	page.Use(middleware.JWTMiddleware())
+    page.Get("/dashboard", controller.DashboardPage)
 
 	// PRODUCT
 	page.Post("/insert/product", controller.InsertDataProduct)        //menambahkan data product
