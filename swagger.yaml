@@ -1,0 +1,197 @@
+openapi: 3.0.0
+info:
+  title: User Management API
+  description: API untuk mengelola data pengguna pada aplikasi UMKM.
+  version: 1.0.0
+servers:
+  - url: http://127.0.0.1:8080
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /users:
+    get:
+      summary: Get All Users
+      description: Mendapatkan daftar semua pengguna.
+      responses:
+        200:
+          description: Daftar semua pengguna berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        500:
+          description: Terjadi kesalahan server saat mengambil data pengguna.
+    post:
+      summary: Insert New User
+      description: Menambahkan data pengguna baru.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        200:
+          description: Data pengguna berhasil ditambahkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data pengguna berhasil ditambahkan.
+                  inserted_id:
+                    type: string
+                    example: 60c72b2f9b1e8e1a2b123456
+        500:
+          description: Gagal menambahkan data pengguna.
+  /users/{id}:
+    get:
+      summary: Get User by ID
+      description: Mendapatkan detail data pengguna berdasarkan ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID pengguna dalam format ObjectID.
+          example: 60c72b2f9b1e8e1a2b123456
+      responses:
+        200:
+          description: Detail pengguna berhasil diambil.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        400:
+          description: Parameter ID tidak valid.
+        404:
+          description: Data pengguna dengan ID tertentu tidak ditemukan.
+        500:
+          description: Kesalahan server saat mengambil data pengguna.
+    put:
+      summary: Update User Data
+      description: Memperbarui data pengguna berdasarkan ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID pengguna dalam format ObjectID.
+          example: 60c72b2f9b1e8e1a2b123456
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        200:
+          description: Data pengguna berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data pengguna berhasil diperbarui.
+                  user_id:
+                    type: string
+                    example: 60c72b2f9b1e8e1a2b123456
+        400:
+          description: Parameter ID tidak valid.
+        500:
+          description: Kesalahan server saat memperbarui data pengguna.
+    delete:
+      summary: Delete User by ID
+      description: Menghapus data pengguna berdasarkan ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID pengguna dalam format ObjectID.
+          example: 60c72b2f9b1e8e1a2b123456
+      responses:
+        200:
+          description: Data pengguna berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data pengguna berhasil dihapus.
+        400:
+          description: Parameter ID tidak valid.
+        500:
+          description: Kesalahan server saat menghapus data pengguna.
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID unik pengguna.
+          example: 60c72b2f9b1e8e1a2b123456
+        name:
+          type: string
+          description: Nama pengguna.
+          example: John Doe
+        email:
+          type: string
+          description: Email pengguna.
+          example: johndoe@example.com
+        store:
+          type: object
+          properties:
+            id:
+              type: string
+              description: ID toko yang terkait dengan pengguna.
+              example: 60d71a4f1e9b8b1a2c345678
+    UserInput:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          description: Nama pengguna.
+          example: John Doe
+        email:
+          type: string
+          description: Email pengguna.
+          example: johndoe@example.com
+        store:
+          type: object
+          properties:
+            id:
+              type: string
+              description: ID toko yang terkait (opsional).
+              example: 60d71a4f1e9b8b1a2c345678
+ 

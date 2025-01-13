@@ -4,6 +4,7 @@ import (
 	"github.com/Proyek-Three/bp-promosi-umkm/controller"
 	"github.com/gofiber/fiber/v2"
 	"github.com/Proyek-Three/bp-promosi-umkm/middleware"
+	"github.com/gofiber/swagger"
 )
 
 func Web(page *fiber.App) {
@@ -67,5 +68,13 @@ func Web(page *fiber.App) {
 	
 	page.Use(middleware.JWTMiddleware)
     page.Get("/dashboard", controller.DashboardPage)
-	// page.Get("/docs/*", swagger.HandlerDefault)
+	// Rute untuk menampilkan Swagger UI dan mendefinisikan URL untuk file swagger.yaml
+	page.Get("/docs/*", swagger.HandlerDefault)
+
+// Pastikan rute untuk mengakses file swagger.yaml juga tersedia
+	page.Get("/swagger.yaml", func(c *fiber.Ctx) error {
+    	return c.SendFile("./docs/swagger.yaml")
+})
+
+
 }
