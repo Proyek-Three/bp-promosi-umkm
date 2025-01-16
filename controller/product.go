@@ -32,6 +32,31 @@ func GetAllProduct(c *fiber.Ctx) error {
 	return c.JSON(ps)
 }
 
+// GetProductsByUserID handler untuk mendapatkan produk berdasarkan user_id
+func GetProductsByUserID(c *fiber.Ctx) error {
+	// Ambil user_id dari parameter URL
+	userIDHex := c.Params("user_id")
+	if userIDHex == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "user_id is required",
+		})
+	}
+
+	// Konversi user_id ke ObjectID
+	userID, err := primitive.ObjectIDFromHex(userIDHex)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid user_id format",
+		})
+	}
+
+	// Panggil fungsi dari backend untuk mendapatkan produk
+	products := cek.GetProductsByUserID(config.Ulbimongoconn, "product", userID)
+
+	// Kembalikan JSON response
+	return c.JSON(products)
+}
+
 func GetProductID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {

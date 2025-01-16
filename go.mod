@@ -3,7 +3,7 @@ module github.com/Proyek-Three/bp-promosi-umkm
 go 1.23.3
 
 require (
-	github.com/Proyek-Three/be-promosi-umkm v0.5.1
+	github.com/Proyek-Three/be-promosi-umkm v0.0.13
 	github.com/aiteung/atdb v0.1.7
 	github.com/aiteung/musik v0.0.5
 	github.com/gofiber/fiber/v2 v2.52.6
@@ -22,6 +22,7 @@ require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/aiteung/atmodel v0.0.4 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fasthttp/websocket v1.5.3 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
