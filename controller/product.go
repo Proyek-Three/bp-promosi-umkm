@@ -1,16 +1,22 @@
 package controller
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"time"
+
 	inimodel "github.com/Proyek-Three/be-promosi-umkm/model"
 	cek "github.com/Proyek-Three/be-promosi-umkm/module"
 	"github.com/Proyek-Three/bp-promosi-umkm/config"
 	"github.com/aiteung/musik"
-	"go.mongodb.org/mongo-driver/bson"
-	
 	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -61,7 +67,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var productdata inimodel.Product
 
-	// Parse JSON input ke struct
+	// Parse form data termasuk file gambar
 	if err := c.BodyParser(&productdata); err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -69,60 +75,77 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi Category ID
-	if !productdata.Category.ID.IsZero() {
-		var category inimodel.Category
-		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "Category ID not found.",
-			})
-		}
-		productdata.Category.CategoryName = category.CategoryName
-	} else {
-		productdata.Category.ID = primitive.NewObjectID()
-		productdata.Category.CategoryName = "Default Category"
-	}
-
-	// Validasi Store ID
-	if !productdata.Store.ID.IsZero() {
-		var store inimodel.Store
-		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": productdata.Store.ID}).Decode(&store)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "Store ID not found.",
-			})
-		}
-		productdata.Store.StoreName = store.StoreName
-		productdata.Store.Address = store.Address
-	} else {
+	// Ambil file gambar dari request
+	file, err := c.FormFile("image") // Asumsikan input file bernama "image"
+	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Store ID is required.",
+			"message": "Failed to get image file: " + err.Error(),
 		})
 	}
 
-	// Validasi Status ID
-	if !productdata.Status.ID.IsZero() {
-		var status inimodel.Status
-		err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": productdata.Status.ID}).Decode(&status)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "Status ID not found.",
-			})
-		}
-		productdata.Status.Status = status.Status
-	} else {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Status ID is required.",
+	// Baca isi file
+	imageFile, err := file.Open()
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Failed to open image file: " + err.Error(),
+		})
+	}
+	defer imageFile.Close()
+
+	// Baca data file
+	imageData, err := ioutil.ReadAll(imageFile)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Failed to read image file: " + err.Error(),
 		})
 	}
 
-	// Insert produk ke database
+	// Step 1: Upload gambar ke GitHub
+	githubToken := os.Getenv("GH_ACCESS_TOKEN") // Ganti dengan token Anda
+	repoOwner := "Proyek-Three"                 // Nama organisasi GitHub
+	repoName := "images"                        // Nama repositori
+	filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), productdata.ProductName)
+	uploadURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath)
+
+	encodedImage := base64.StdEncoding.EncodeToString(imageData)
+	payload := map[string]string{
+		"message": fmt.Sprintf("Add image for product %s", productdata.ProductName),
+		"content": encodedImage,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest("PUT", uploadURL, bytes.NewReader(payloadBytes))
+	req.Header.Set("Authorization", "Bearer "+githubToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Failed to upload image to GitHub: " + err.Error(),
+		})
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "GitHub API error: " + string(body),
+		})
+	}
+
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+	imageURL := result["content"].(map[string]interface{})["download_url"].(string)
+
+	// Tambahkan URL gambar ke data produk
+	productdata.Image = imageURL
+
+	// Step 2: Simpan data produk ke database
 	insertedID, err := cek.InsertProduct(db, "product", productdata)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -131,24 +154,13 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return response berhasil
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status":        http.StatusOK,
-		"message":       "Product data saved successfully.",
-		"inserted_id":   insertedID.Hex(),
-		"category_id":   productdata.Category.ID.Hex(),
-		"store_id":      productdata.Store.ID.Hex(),
-		"status_id":     productdata.Status.ID.Hex(),
-		"category_name": productdata.Category.CategoryName,
-		"store_name":    productdata.Store.StoreName,
-		"address":       productdata.Store.Address,
-		"status_name":   productdata.Status.Status,
+		"status":      http.StatusOK,
+		"message":     "Product data saved successfully.",
+		"inserted_id": insertedID,
+		"image_url":   imageURL,
 	})
 }
-
-
-
-
 
 func UpdateDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
@@ -250,15 +262,6 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		"status_name":   updatedProduct.Status.Status,
 	})
 }
-
-
-
-
-
-
-
-
-
 
 func DeleteProductByID(c *fiber.Ctx) error {
 	id := c.Params("id")
