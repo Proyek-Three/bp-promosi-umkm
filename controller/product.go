@@ -109,7 +109,33 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Read the image file
+	// Validate required fields
+	if productdata.Category.ID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid category ID: cannot be empty",
+		})
+	}
+	if productdata.Store.ID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid store ID: cannot be empty",
+		})
+	}
+	if productdata.Status.ID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid status ID: cannot be empty",
+		})
+	}
+	if productdata.User.ID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid user ID: cannot be empty",
+		})
+	}
+
+	// Open the image file
 	imageFile, err := file.Open()
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -164,39 +190,25 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	}
 
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
-	imageURL := result["content"].(map[string]interface{})["download_url"].(string)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Failed to parse GitHub API response: " + err.Error(),
+		})
+	}
+	content, ok := result["content"].(map[string]interface{})
+	if !ok || content["download_url"] == nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "GitHub API response missing download_url",
+		})
+	}
+	imageURL := content["download_url"].(string)
 
 	// Set image URL in the product data
 	productdata.Image = imageURL
 
-	// Step 2: Validate category, store, status, and user IDs
-	if productdata.Category.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Invalid category ID: cannot be empty",
-		})
-	}
-	if productdata.Store.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Invalid store ID: cannot be empty",
-		})
-	}
-	if productdata.Status.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Invalid status ID: cannot be empty",
-		})
-	}
-	if productdata.User.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Invalid user ID: cannot be empty",
-		})
-	}
-
-	// Step 3: Save product data to database
+	// Step 2: Save product data to database
 	insertedID, err := cek.InsertProduct(db, "product", productdata)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -212,6 +224,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		"image_url":   imageURL,
 	})
 }
+
 
 
 func UpdateDataProduct(c *fiber.Ctx) error {
