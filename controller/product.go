@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"os"
 	"time"
-
+	"strconv"
 	inimodel "github.com/Proyek-Three/be-promosi-umkm/model"
 	cek "github.com/Proyek-Three/be-promosi-umkm/module"
 	"github.com/Proyek-Three/bp-promosi-umkm/config"
@@ -89,103 +89,115 @@ func GetProductID(c *fiber.Ctx) error {
 }
 
 func InsertDataProduct(c *fiber.Ctx) error {
-	db := config.Ulbimongoconn
-	var productdata inimodel.Product
+    db := config.Ulbimongoconn
+    var productdata inimodel.Product
 
-	// Parse form data termasuk file gambar
-	if err := c.BodyParser(&productdata); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
-		})
-	}
+    // Parse form data (kecuali file gambar)
+    if err := c.BodyParser(&productdata); err != nil {
+        return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+            "status":  http.StatusInternalServerError,
+            "message": err.Error(),
+        })
+    }
 
-	// Ambil file gambar dari request
-	file, err := c.FormFile("image") // Asumsikan input file bernama "image"
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Failed to get image file: " + err.Error(),
-		})
-	}
+    // Ambil nilai "price" dan konversi ke float64
+    price, err := strconv.ParseFloat(c.FormValue("price"), 64)
+    if err != nil {
+        return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+            "status":  http.StatusBadRequest,
+            "message": "Invalid price value: " + err.Error(),
+        })
+    }
+    productdata.Price = price
 
-	// Baca isi file
-	imageFile, err := file.Open()
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "Failed to open image file: " + err.Error(),
-		})
-	}
-	defer imageFile.Close()
+    // Ambil file gambar dari request
+    file, err := c.FormFile("image") // Asumsikan input file bernama "image"
+    if err != nil {
+        return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+            "status":  http.StatusBadRequest,
+            "message": "Failed to get image file: " + err.Error(),
+        })
+    }
 
-	// Baca data file
-	imageData, err := ioutil.ReadAll(imageFile)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "Failed to read image file: " + err.Error(),
-		})
-	}
+    // Baca isi file
+    imageFile, err := file.Open()
+    if err != nil {
+        return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+            "status":  http.StatusInternalServerError,
+            "message": "Failed to open image file: " + err.Error(),
+        })
+    }
+    defer imageFile.Close()
 
-	// Step 1: Upload gambar ke GitHub
-	githubToken := os.Getenv("GH_ACCESS_TOKEN") // Ganti dengan token Anda
-	repoOwner := "Proyek-Three"                 // Nama organisasi GitHub
-	repoName := "images"                        // Nama repositori
-	filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), productdata.ProductName)
-	uploadURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath)
+    // Baca data file
+    imageData, err := ioutil.ReadAll(imageFile)
+    if err != nil {
+        return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+            "status":  http.StatusInternalServerError,
+            "message": "Failed to read image file: " + err.Error(),
+        })
+    }
 
-	encodedImage := base64.StdEncoding.EncodeToString(imageData)
-	payload := map[string]string{
-		"message": fmt.Sprintf("Add image for product %s", productdata.ProductName),
-		"content": encodedImage,
-	}
-	payloadBytes, _ := json.Marshal(payload)
+    // Step 1: Upload gambar ke GitHub
+    githubToken := os.Getenv("GH_ACCESS_TOKEN") // Ganti dengan token Anda
+    repoOwner := "Proyek-Three"                 // Nama organisasi GitHub
+    repoName := "images"                        // Nama repositori
+    filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), productdata.ProductName)
+    uploadURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath)
 
-	req, _ := http.NewRequest("PUT", uploadURL, bytes.NewReader(payloadBytes))
-	req.Header.Set("Authorization", "Bearer "+githubToken)
-	req.Header.Set("Content-Type", "application/json")
+    encodedImage := base64.StdEncoding.EncodeToString(imageData)
+    payload := map[string]string{
+        "message": fmt.Sprintf("Add image for product %s", productdata.ProductName),
+        "content": encodedImage,
+    }
+    payloadBytes, _ := json.Marshal(payload)
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "Failed to upload image to GitHub: " + err.Error(),
-		})
-	}
-	defer resp.Body.Close()
+    req, _ := http.NewRequest("PUT", uploadURL, bytes.NewReader(payloadBytes))
+    req.Header.Set("Authorization", "Bearer "+githubToken)
+    req.Header.Set("Content-Type", "application/json")
 
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "GitHub API error: " + string(body),
-		})
-	}
+    resp, err := http.DefaultClient.Do(req)
+    if err != nil {
+        return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+            "status":  http.StatusInternalServerError,
+            "message": "Failed to upload image to GitHub: " + err.Error(),
+        })
+    }
+    defer resp.Body.Close()
 
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
-	imageURL := result["content"].(map[string]interface{})["download_url"].(string)
+    if resp.StatusCode != http.StatusCreated {
+        body, _ := ioutil.ReadAll(resp.Body)
+        return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+            "status":  http.StatusInternalServerError,
+            "message": "GitHub API error: " + string(body),
+        })
+    }
 
-	// Tambahkan URL gambar ke data produk
-	productdata.Image = imageURL
+    var result map[string]interface{}
+    json.NewDecoder(resp.Body).Decode(&result)
+    imageURL := result["content"].(map[string]interface{})["download_url"].(string)
 
-	// Step 2: Simpan data produk ke database
-	insertedID, err := cek.InsertProduct(db, "product", productdata)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
-		})
-	}
+    // Tambahkan URL gambar ke data produk
+    productdata.Image = imageURL
 
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status":      http.StatusOK,
-		"message":     "Product data saved successfully.",
-		"inserted_id": insertedID,
-		"image_url":   imageURL,
-	})
+    // Step 2: Simpan data produk ke database
+    insertedID, err := cek.InsertProduct(db, "product", productdata)
+    if err != nil {
+        return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+            "status":  http.StatusInternalServerError,
+            "message": err.Error(),
+        })
+    }
+
+    return c.Status(http.StatusOK).JSON(fiber.Map{
+        "status":      http.StatusOK,
+        "message":     "Product data saved successfully.",
+        "inserted_id": insertedID,
+        "image_url":   imageURL,
+    })
 }
+
+
 
 func UpdateDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
