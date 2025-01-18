@@ -92,7 +92,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var productdata inimodel.Product
 
-	// Parse form data termasuk file gambar
+	// Parse form data including file image
 	if err := c.BodyParser(&productdata); err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -100,8 +100,8 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Ambil file gambar dari request
-	file, err := c.FormFile("image") // Asumsikan input file bernama "image"
+	// Get the image file from the request
+	file, err := c.FormFile("image") // Assumes the file input is named "image"
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
@@ -109,7 +109,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Baca isi file
+	// Read the image file
 	imageFile, err := file.Open()
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -119,7 +119,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	}
 	defer imageFile.Close()
 
-	// Baca data file
+	// Read the file data
 	imageData, err := ioutil.ReadAll(imageFile)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -128,10 +128,10 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Step 1: Upload gambar ke GitHub
-	githubToken := os.Getenv("GH_ACCESS_TOKEN") // Ganti dengan token Anda
-	repoOwner := "Proyek-Three"                 // Nama organisasi GitHub
-	repoName := "images"                        // Nama repositori
+	// Step 1: Upload the image to GitHub
+	githubToken := os.Getenv("GH_ACCESS_TOKEN") // Your GitHub token
+	repoOwner := "Proyek-Three"                 // GitHub organization
+	repoName := "images"                        // Repository name
 	filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), productdata.ProductName)
 	uploadURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath)
 
@@ -167,15 +167,41 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	json.NewDecoder(resp.Body).Decode(&result)
 	imageURL := result["content"].(map[string]interface{})["download_url"].(string)
 
-	// Tambahkan URL gambar ke data produk
+	// Set image URL in the product data
 	productdata.Image = imageURL
 
-	// Step 2: Simpan data produk ke database
+	// Step 2: Validate category, store, status, and user IDs
+	if productdata.Category.ID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid category ID: cannot be empty",
+		})
+	}
+	if productdata.Store.ID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid store ID: cannot be empty",
+		})
+	}
+	if productdata.Status.ID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid status ID: cannot be empty",
+		})
+	}
+	if productdata.User.ID.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid user ID: cannot be empty",
+		})
+	}
+
+	// Step 3: Save product data to database
 	insertedID, err := cek.InsertProduct(db, "product", productdata)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
+			"message": "Failed to insert product: " + err.Error(),
 		})
 	}
 
@@ -186,6 +212,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		"image_url":   imageURL,
 	})
 }
+
 
 func UpdateDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
