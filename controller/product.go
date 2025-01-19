@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	inimodel "github.com/Proyek-Three/be-promosi-umkm/model"
@@ -16,9 +17,11 @@ import (
 	"github.com/Proyek-Three/bp-promosi-umkm/config"
 	"github.com/aiteung/musik"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+
 )
 
 func Homepage(c *fiber.Ctx) error {
@@ -32,29 +35,96 @@ func GetAllProduct(c *fiber.Ctx) error {
 	return c.JSON(ps)
 }
 
-// GetProductsByUserID handler untuk mendapatkan produk berdasarkan user_id
-func GetProductsByUserID(c *fiber.Ctx) error {
-	// Ambil user_id dari parameter URL
-	userIDHex := c.Params("user_id")
-	if userIDHex == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "user_id is required",
+// Fungsi untuk mengambil produk berdasarkan user_id
+func GetProductsByUser(c *fiber.Ctx) error {
+	// Ambil token dari header Authorization
+	bearerToken := c.Get("Authorization")
+	sttArr := strings.Split(bearerToken, " ")
+	if len(sttArr) != 2 {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized",
 		})
 	}
 
-	// Konversi user_id ke ObjectID
-	userID, err := primitive.ObjectIDFromHex(userIDHex)
+	// Validasi token JWT
+	token, err := jwt.Parse(sttArr[1], func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid user_id format",
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Invalid token",
 		})
 	}
 
-	// Panggil fungsi dari backend untuk mendapatkan produk
-	products := cek.GetProductsByUserID(config.Ulbimongoconn, "product", userID)
+	// Ambil user_id dari claims di dalam token
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Unauthorized",
+		})
+	}
 
-	// Kembalikan JSON response
-	return c.JSON(products)
+	// Ambil user_id sebagai string dan konversi ke ObjectID
+	userIDStr := claims["user_id"].(string)
+	userIDObjectID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Invalid user ID format",
+		})
+	}
+
+	// Ambil data produk berdasarkan user._id (perhatikan user._id adalah ObjectID)
+	db := config.Ulbimongoconn // Pastikan Anda sudah mengonfigurasi database
+	var products []inimodel.Product
+	cursor, err := db.Collection("product").Find(c.Context(), bson.M{
+		"user._id": userIDObjectID, // Gunakan ObjectID dalam query MongoDB
+	})
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch products: " + err.Error(),
+		})
+	}
+	defer cursor.Close(c.Context()) // Pastikan cursor ditutup
+
+	// Mendekode setiap produk dalam cursor
+	for cursor.Next(c.Context()) {
+		var product inimodel.Product
+		if err := cursor.Decode(&product); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to decode product: " + err.Error(),
+			})
+		}
+
+		// Hanya ambil id dan username dari User
+		product.User = inimodel.Users{
+			ID:       product.User.ID,
+			Username: product.User.Username,
+		}
+
+		// Menambahkan produk yang telah diubah ke dalam list
+		products = append(products, product)
+	}
+
+	// Cek jika cursor error
+	if err := cursor.Err(); err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Cursor error: " + err.Error(),
+		})
+	}
+
+	// Jika produk tidak ditemukan
+	if len(products) == 0 {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"message": "No products found for this user",
+		})
+	}
+
+	// Kembalikan data produk dalam bentuk JSON
+	return c.JSON(fiber.Map{
+		"status":  http.StatusOK,
+		"message": "Products fetched successfully",
+		"data":    products,
+	})
 }
 
 func GetProductID(c *fiber.Ctx) error {
@@ -100,38 +170,110 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
+	// Validasi required fields
+	if productdata.ProductName == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Product name cannot be empty",
+		})
+	}
+
+	if productdata.Description == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Product description cannot be empty",
+		})
+	}
+
+	if productdata.Price <= 0 {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Product price must be greater than zero",
+		})
+	}
+
+	// Cek apakah kategori ID diberikan
+	if !productdata.Category.ID.IsZero() {
+		// Cari kategori berdasarkan ID
+		var category inimodel.Category
+		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Category ID not found.",
+			})
+		}
+		// Set category_name berdasarkan hasil pencarian
+		productdata.Category.CategoryName = category.CategoryName
+	} else {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Category ID is required",
+		})
+	}
+
+	// Generate ObjectID baru untuk toko jika ID tidak ada
+	if !productdata.Store.ID.IsZero() {
+		var store inimodel.Store
+		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": productdata.Store.ID}).Decode(&store)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Store ID not found.",
+			})
+		}
+		// Set category_name berdasarkan hasil pencarian
+		productdata.Store.StoreName = store.StoreName
+		productdata.Store.Address = store.Address
+	} else {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Store ID is required",
+		})
+	}
+
+	if !productdata.Status.ID.IsZero() {
+		var status inimodel.Status
+		err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": productdata.Status.ID}).Decode(&status)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Status ID not found.",
+			})
+		}
+		// Set category_name berdasarkan hasil pencarian
+		productdata.Status.Status = status.Status
+	} else {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Status ID is required",
+		})
+	}
+
+	if !productdata.User.ID.IsZero() {
+		var user inimodel.Users
+		err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": productdata.User.ID}).Decode(&user)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "User ID not found.",
+			})
+		}
+		// Set category_name berdasarkan hasil pencarian
+		productdata.User.Username = user.Username
+	} else {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "User ID is required",
+		})
+	}
+
 	// Get the image file from the request
 	file, err := c.FormFile("image") // Assumes the file input is named "image"
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
 			"message": "Failed to get image file: " + err.Error(),
-		})
-	}
-
-	// Validate required fields
-	if productdata.Category.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Invalid category ID: cannot be empty",
-		})
-	}
-	if productdata.Store.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Invalid store ID: cannot be empty",
-		})
-	}
-	if productdata.Status.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Invalid status ID: cannot be empty",
-		})
-	}
-	if productdata.User.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Invalid user ID: cannot be empty",
 		})
 	}
 
@@ -156,8 +298,8 @@ func InsertDataProduct(c *fiber.Ctx) error {
 
 	// Step 1: Upload the image to GitHub
 	githubToken := os.Getenv("GH_ACCESS_TOKEN") // Your GitHub token
-	repoOwner := "Proyek-Three"                 // GitHub organization
-	repoName := "images"                        // Repository name
+	repoOwner := "Proyek-Three"                               // GitHub organization
+	repoName := "images"                                      // Repository name
 	filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), productdata.ProductName)
 	uploadURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath)
 
@@ -224,8 +366,6 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		"image_url":   imageURL,
 	})
 }
-
-
 
 func UpdateDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn

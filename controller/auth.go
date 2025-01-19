@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	inimodel "github.com/Proyek-Three/be-promosi-umkm/model"
@@ -35,7 +36,7 @@ func Register(c *fiber.Ctx) error {
 	// Validasi semua field harus terisi
 	if dataRegis.Name == "" || dataRegis.Username == "" || dataRegis.Password == "" ||
 		dataRegis.Email == "" || dataRegis.PhoneNumber == "" || dataRegis.Store.StoreName == "" ||
-		dataRegis.Store.Address == "" || dataRegis.Store.Sosmed == "" {
+		dataRegis.Store.Address == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
 			"message": "All fields are required",
@@ -153,4 +154,30 @@ func Login(c *fiber.Ctx) error {
 			"role": existingUser.Role,
 		},
 	})
+}
+
+// ValidateToken memvalidasi token JWT
+func ValidateToken(tokenString string) (bool, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return token.Valid, nil
+}
+
+// JWTAuth middleware untuk memverifikasi token di Fiber
+func JWTAuth(c *fiber.Ctx) error {
+	bearerToken := c.Get("Authorization") // Ambil Authorization header
+	sttArr := strings.Split(bearerToken, " ")
+	if len(sttArr) == 2 {
+		isValid, _ := ValidateToken(sttArr[1]) // Validasi token
+		if isValid {
+			return c.Next() // Lanjutkan ke handler berikutnya jika token valid
+		}
+	}
+	return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+		"message": "Unauthorized",
+	}) // Jika tidak valid
 }

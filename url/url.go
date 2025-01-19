@@ -2,7 +2,6 @@ package url
 
 import (
 	"github.com/Proyek-Three/bp-promosi-umkm/controller"
-	"github.com/Proyek-Three/bp-promosi-umkm/middleware"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
 )
@@ -26,12 +25,13 @@ func Web(page *fiber.App) {
 	// page.Post("/admin/logout", controller.Logout)
 
 	// PRODUCT
-	page.Post("/insert/product", controller.InsertDataProduct)           //menambahkan data product
-	page.Get("/product", controller.GetAllProduct)                       //menampilkan semua data product
-	page.Get("/product/:id", controller.GetProductID)                    //menampilkan data product berdasarkan id
-	page.Put("/update/product/:id", controller.UpdateDataProduct)        //update data product
-	page.Delete("/product/delete/:id", controller.DeleteProductByID)     //delete data product
-	page.Get("/product-seller/:user_id", controller.GetProductsByUserID) //delete data product
+	page.Post("/insert/product", controller.JWTAuth, controller.InsertDataProduct)       //menambahkan data product
+	page.Get("/product", controller.GetAllProduct)                                       //menampilkan semua data product
+	page.Get("/product/:id", controller.GetProductID)                                    //menampilkan data product berdasarkan id
+	page.Put("/update/product/:id", controller.JWTAuth, controller.UpdateDataProduct)    //update data product
+	page.Delete("/product/delete/:id", controller.JWTAuth, controller.DeleteProductByID) //delete data product
+	// Menambahkan route dengan JWTAuth sebagai middleware
+	page.Get("/product-seller", controller.JWTAuth, controller.GetProductsByUser)
 
 	// CATEGORY
 	page.Post("/insert/category", controller.InsertCategory)
@@ -64,7 +64,7 @@ func Web(page *fiber.App) {
 	page.Put("/update/status/:id", controller.UpdateStatus)
 	page.Delete("/status/delete/:id", controller.DeleteStatusByID)
 
-	page.Use(middleware.JWTMiddleware)
+	// page.Use(middleware.JWTMiddleware)
 	page.Get("/dashboard", controller.DashboardPage)
 	// Rute untuk menampilkan Swagger UI dan mendefinisikan URL untuk file swagger.yaml
 	page.Get("/docs/*", swagger.HandlerDefault)
