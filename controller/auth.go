@@ -22,35 +22,50 @@ type Claims struct {
 }
 
 func Register(c *fiber.Ctx) error {
-	var newAdmin inimodel.User
-	if err := c.BodyParser(&newAdmin); err != nil {
+	var dataRegis inimodel.Users
+
+	// Parse body request
+	if err := c.BodyParser(&dataRegis); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
 			"message": "Invalid request body",
 		})
 	}
 
-	// Check if username already exists
-	existingAdmin, err := cek.GetUserByUsernameOrEmail(config.Ulbimongoconn, "Users", newAdmin.Username, newAdmin.Email)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "Could not check existing username",
-		})
-	}
-	if existingAdmin != nil {
-		return c.Status(http.StatusConflict).JSON(fiber.Map{
-			"status":  http.StatusConflict,
-			"message": "Username already taken",
+	// Validasi semua field harus terisi
+	if dataRegis.Name == "" || dataRegis.Username == "" || dataRegis.Password == "" ||
+		dataRegis.Email == "" || dataRegis.PhoneNumber == "" || dataRegis.Store.StoreName == "" ||
+		dataRegis.Store.Address == "" || dataRegis.Store.Sosmed == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "All fields are required",
 		})
 	}
 
-	// Save admin to database
-	insertedID, err := cek.InsertAdmin(config.Ulbimongoconn, "Users", newAdmin.Username, newAdmin.Password, newAdmin.Email)
+	// Check if username or email already exists
+	existingUser, err := cek.GetUserByUsernameOrEmail(config.Ulbimongoconn, "Users", dataRegis.Username, dataRegis.Email)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
-			"message": "Could not register admin",
+			"message": "Could not check existing username or email",
+		})
+	}
+	if existingUser != nil {
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"status":  http.StatusConflict,
+			"message": "Username or email already taken",
+		})
+	}
+
+	// Set default role to "seller"
+	dataRegis.Role = "seller"
+
+	// Save user with store to database
+	insertedID, err := cek.RegisUser(config.Ulbimongoconn, "Users", dataRegis)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Could not register user",
 		})
 	}
 
@@ -62,7 +77,8 @@ func Register(c *fiber.Ctx) error {
 }
 
 func Login(c *fiber.Ctx) error {
-	var loginData inimodel.User
+	// Parse login data from request body
+	var loginData inimodel.Users
 	if err := c.BodyParser(&loginData); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
@@ -70,35 +86,50 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	// Fetch user by username or email
-	existingAdmin, err := cek.GetUserByUsernameOrEmail(config.Ulbimongoconn, "Users", loginData.Username, loginData.Email)
+	// Validasi bahwa username/email dan password tidak kosong
+	if loginData.Username == "" && loginData.Email == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Username or email is required",
+		})
+	}
+	if loginData.Password == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Password is required",
+		})
+	}
+
+	// Ambil user berdasarkan username atau email
+	existingUser, err := cek.GetUserByUsernameOrEmail(config.Ulbimongoconn, "Users", loginData.Username, loginData.Email)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
 			"message": "Error fetching user data",
 		})
 	}
-	if existingAdmin == nil {
+	if existingUser == nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"status":  http.StatusUnauthorized,
-			"message": "Invalid credentials",
+			"message": "Invalid username, email, or password",
 		})
 	}
 
-	// Validate password
-	if !cek.ValidatePassword(existingAdmin.Password, loginData.Password) {
+	// Validasi password
+	if !cek.ValidatePassword(existingUser.Password, loginData.Password) {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"status":  http.StatusUnauthorized,
-			"message": "Invalid credentials",
+			"message": "Invalid username,or password",
 		})
 	}
 
-	// Generate token
+	// Buat JWT token
 	expirationTime := time.Now().Add(60 * time.Minute)
 	claims := &Claims{
-		UserID:   existingAdmin.ID,
-		Username: existingAdmin.Username,
-		Email:    existingAdmin.Email,
+		UserID:   existingUser.ID,
+		Username: existingUser.Username,
+		Email:    existingUser.Email,
+		Role:     existingUser.Role,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
@@ -113,10 +144,13 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	// Successful login
+	// Berhasil login
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":  http.StatusOK,
 		"message": "Login successful",
-		"token":   tokenString, // Token ditambahkan di sini
+		"token":   tokenString, // Token dikembalikan ke client
+		"data": fiber.Map{
+			"role": existingUser.Role,
+		},
 	})
 }
