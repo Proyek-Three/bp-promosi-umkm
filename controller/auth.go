@@ -43,7 +43,7 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	// Check if username or email already exists
-	existingUser, err := cek.GetUserByUsernameOrEmail(config.Ulbimongoconn, "Users", dataRegis.Username, dataRegis.Email)
+	existingUser, err := cek.GetUserByUsernameOrEmail(config.Ulbimongoconn, "users", dataRegis.Username, dataRegis.Email)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -61,7 +61,7 @@ func Register(c *fiber.Ctx) error {
 	dataRegis.Role = "seller"
 
 	// Save user with store to database
-	insertedID, err := cek.RegisUser(config.Ulbimongoconn, "Users", dataRegis)
+	insertedID, err := cek.RegisUser(config.Ulbimongoconn, "users", dataRegis)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -101,7 +101,7 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	// Ambil user berdasarkan username atau email
-	existingUser, err := cek.GetUserByUsernameOrEmail(config.Ulbimongoconn, "Users", loginData.Username, loginData.Email)
+	existingUser, err := cek.GetUserByUsernameOrEmail(config.Ulbimongoconn, "users", loginData.Username, loginData.Email)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
