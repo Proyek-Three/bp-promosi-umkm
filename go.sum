@@ -17,6 +17,8 @@ github.com/Proyek-Three/be-promosi-umkm v0.7.9 h1:gHreaq4rg4QlPSPF3bjDwTrhImPnAI
 github.com/Proyek-Three/be-promosi-umkm v0.7.9/go.mod h1:+NtFYnX8d6Kz/bbBZZNpLFEOso9+h+tXiTVuYrJyQuU=
 github.com/Proyek-Three/be-promosi-umkm v0.8.1 h1:ed/roAq0OI2WnAOu6X4jONLHuULIGSgyPvo5IaRCe3k=
 github.com/Proyek-Three/be-promosi-umkm v0.8.1/go.mod h1:+NtFYnX8d6Kz/bbBZZNpLFEOso9+h+tXiTVuYrJyQuU=
+github.com/Proyek-Three/be-promosi-umkm v0.8.2 h1:LR79F8/e6W95zUfqvQywh8EOGWkMJT47a9FdYA7uHcc=
+github.com/Proyek-Three/be-promosi-umkm v0.8.2/go.mod h1:+NtFYnX8d6Kz/bbBZZNpLFEOso9+h+tXiTVuYrJyQuU=
 github.com/aiteung/atdb v0.1.7 h1:EV7vk5ld8i1wlrzf9N3FGDcvYvQz0dCnb0m2WCbRFOk=
 github.com/aiteung/atdb v0.1.7/go.mod h1:pxLum1XaWHcrspqu3n8zHKix2h5czOIiwAgIMKl3cX0=
 github.com/aiteung/atmodel v0.0.4 h1:jz0/jPfVjiNxMGaP8Rfl+14cgJZ8uu1vg3a46L/nzBo=
