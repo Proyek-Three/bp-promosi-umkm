@@ -237,26 +237,24 @@ func InsertDataProduct(c *fiber.Ctx) error {
 				"message": "User ID not found.",
 			})
 		}
-
-		// Ambil data store berdasarkan user.Store.ID
-		var store inimodel.Store
-		err = db.Collection("stores").FindOne(c.Context(), bson.M{"_id": user.Store.ID}).Decode(&store)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "Store ID not found.",
+	
+		if user.Store.ID.IsZero() {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"status":  http.StatusBadRequest,
+				"message": "Store ID is missing for the user.",
 			})
 		}
-
+	
 		productdata.User.Username = user.Username
-		productdata.StoreName = store.StoreName
-		productdata.StoreAddress = store.Address
+		productdata.StoreName = user.Store.StoreName
+		productdata.StoreAddress = user.Store.Address
 	} else {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "User ID is required",
+			"message": "User ID is required.",
 		})
 	}
+	
 
 	// Proses upload gambar tetap sama
 	file, err := c.FormFile("image")
