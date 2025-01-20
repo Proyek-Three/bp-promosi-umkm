@@ -77,6 +77,48 @@ func Register(c *fiber.Ctx) error {
 	})
 }
 
+func GetUserProfile(c *fiber.Ctx) error {
+	// Ambil username dari query parameter atau header (sesuaikan dengan kebutuhan Anda)
+	username := c.Query("username") 
+	if username == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Username is required",
+		})
+	}
+
+	// Ambil data pengguna dari database berdasarkan username
+	user, err := cek.GetUserByUsername(config.Ulbimongoconn, "users", username)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Failed to retrieve user profile",
+		})
+	}
+	if user == nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"status":  http.StatusNotFound,
+			"message": "User not found",
+		})
+	}
+
+	// Kirim data pengguna ke frontend (tanpa menyertakan password untuk keamanan)
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"status":  http.StatusOK,
+		"message": "User profile retrieved successfully",
+		"data": fiber.Map{
+			"name":         user.Name,
+			"username":     user.Username,
+			"email":        user.Email,
+			"phone_number": user.PhoneNumber,
+			"store": fiber.Map{
+				"store_name": user.Store.StoreName,
+				"address":    user.Store.Address,
+			},
+		},
+	})
+}
+
 func Login(c *fiber.Ctx) error {
 	// Parse login data from request body
 	var loginData inimodel.Users
@@ -180,4 +222,59 @@ func JWTAuth(c *fiber.Ctx) error {
 	return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 		"message": "Unauthorized",
 	}) // Jika tidak valid
+}
+
+func GetAllUser(c *fiber.Ctx) error {
+	collection := config.Ulbimongoconn.Collection("users")
+	users, err := cek.GetAllUser(collection)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Error fetching users",
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"status": http.StatusOK,
+		"data":   users,
+	})
+}
+
+func GetProfile(c *fiber.Ctx) error {
+	bearerToken := c.Get("Authorization")
+	sttArr := strings.Split(bearerToken, " ")
+	if len(sttArr) != 2 {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"status":  http.StatusUnauthorized,
+			"message": "Unauthorized",
+		})
+	}
+
+	tokenString := sttArr[1]
+	token, _ := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"status":  http.StatusUnauthorized,
+			"message": "Invalid token",
+		})
+	}
+
+	userID := claims.UserID
+	collection := config.Ulbimongoconn.Collection("users")
+	user, err := cek.GetUsersByID(collection, userID)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Error fetching profile",
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"status": http.StatusOK,
+		"data":   user,
+	})
 }

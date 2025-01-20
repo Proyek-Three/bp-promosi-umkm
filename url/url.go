@@ -20,6 +20,11 @@ func Web(page *fiber.App) {
 	// AUTH
 	page.Post("/users/register", controller.Register)
 	page.Post("/users/login", controller.Login)
+	page.Get("/users/profil", controller.GetUserProfile)
+	page.Get("/users", controller.GetAllUser)      
+	page.Get("/users/profile", controller.GetProfile) 
+
+
 	// page.Post("/register/admin", controller.RegisterAdmin)
 	// page.Post("/admin/login", controller.LoginAdmin)
 	// page.Post("/admin/logout", controller.Logout)
@@ -42,19 +47,19 @@ func Web(page *fiber.App) {
 
 	// STORE
 
-	page.Post("/insert/store", controller.InsertStore)
-	page.Get("/store", controller.GetAllStores)
-	page.Get("/store/:id", controller.GetStoreByID)
-	page.Put("/update/store/:id", controller.UpdateStore)
-	page.Delete("/store/delete/:id", controller.DeleteStoreByID)
+	//page.Post("/insert/store", controller.InsertStore)
+	//page.Get("/store", controller.GetAllStores)
+	//page.Get("/store/:id", controller.GetStoreByID)
+	//page.Put("/update/store/:id", controller.UpdateStore)
+	//page.Delete("/store/delete/:id", controller.DeleteStoreByID)
 
 	// Data Users
 
-	page.Post("/insert/user", controller.InsertDataUser)
-	page.Get("/users", controller.GetAllUsers)
-	page.Get("/user/:id", controller.GetUserByID)
-	page.Put("/update/user/:id", controller.UpdateDataUser)
-	page.Delete("/user/delete/:id", controller.DeleteUserByID)
+	//page.Post("/insert/user", controller.InsertDataUser)
+	//page.Get("/users", controller.GetAllUsers)
+	//page.Get("/user/:id", controller.GetUserByID)
+	//page.Put("/update/user/:id", controller.UpdateDataUser)
+	//page.Delete("/user/delete/:id", controller.DeleteUserByID)
 
 	// Status
 

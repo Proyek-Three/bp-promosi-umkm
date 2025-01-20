@@ -1,26 +1,29 @@
 package controller
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
+	//"errors"
+	//"fmt"
+	//"net/http"
 
-	inimodel "github.com/Proyek-Three/be-promosi-umkm/model"
-	cek "github.com/Proyek-Three/be-promosi-umkm/module"
-	"github.com/Proyek-Three/bp-promosi-umkm/config"
-	"github.com/gofiber/fiber/v2"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
+	//inimodel "github.com/Proyek-Three/be-promosi-umkm/model"
+	//cek "github.com/Proyek-Three/be-promosi-umkm/module"
+	//"github.com/Proyek-Three/bp-promosi-umkm/config"
+	//"github.com/gofiber/fiber/v2"
+	//"go.mongodb.org/mongo-driver/bson/primitive"
+	//"go.mongodb.org/mongo-driver/mongo"
 )
 
 // GetAllStores retrieves all store data.
+/*
 func GetAllStores(c *fiber.Ctx) error {
 	stores := cek.GetAllStore(config.Ulbimongoconn, "stores")
 	fmt.Println("Data yang akan dikirim: ", stores) // Debug log
 	return c.JSON(stores)
 }
+*/
 
 // GetStoreByID retrieves store data by its ID.
+/*
 func GetStoreByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
@@ -54,8 +57,10 @@ func GetStoreByID(c *fiber.Ctx) error {
 
 	return c.JSON(store)
 }
+*/
 
 // InsertStore inserts a new store into the database.
+/*
 func InsertStore(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var store inimodel.Store
@@ -81,8 +86,10 @@ func InsertStore(c *fiber.Ctx) error {
 		"inserted_id": insertedID,
 	})
 }
+*/
 
 // UpdateStore updates an existing store's data.
+/*
 func UpdateStore(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	id := c.Params("id")
@@ -120,8 +127,10 @@ func UpdateStore(c *fiber.Ctx) error {
 		"message": "Store data successfully updated.",
 	})
 }
+*/
 
 // DeleteStoreByID deletes a store from the database by its ID.
+/*
 func DeleteStoreByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
@@ -152,3 +161,4 @@ func DeleteStoreByID(c *fiber.Ctx) error {
 		"message": fmt.Sprintf("Store data with id %s deleted successfully.", id),
 	})
 }
+*/

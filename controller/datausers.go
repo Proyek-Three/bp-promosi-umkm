@@ -1,6 +1,6 @@
 package controller
 
-
+/*
 import (
 	"errors"
 	"fmt"
@@ -23,7 +23,6 @@ func GetAllUsers(c *fiber.Ctx) error {
     }
     return c.JSON(users)
 }
-
 
 func GetUserByID(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -92,7 +91,6 @@ func InsertDataUser(c *fiber.Ctx) error {
 	})
 }
 
-
 func UpdateDataUser(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var updatedUser inimodel.DataUsers
@@ -138,7 +136,6 @@ func UpdateDataUser(c *fiber.Ctx) error {
 	})
 }
 
-
 func DeleteUserByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
@@ -169,3 +166,4 @@ func DeleteUserByID(c *fiber.Ctx) error {
 		"message": fmt.Sprintf("User data with id %s deleted successfully", id),
 	})
 }
+*/

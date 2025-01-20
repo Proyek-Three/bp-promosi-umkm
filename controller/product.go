@@ -213,24 +213,6 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	}
 
 	// Generate ObjectID baru untuk toko jika ID tidak ada
-	if !productdata.Store.ID.IsZero() {
-		var store inimodel.Store
-		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": productdata.Store.ID}).Decode(&store)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "Store ID not found.",
-			})
-		}
-		// Set category_name berdasarkan hasil pencarian
-		productdata.Store.StoreName = store.StoreName
-		productdata.Store.Address = store.Address
-	} else {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Store ID is required",
-		})
-	}
 
 	if !productdata.Status.ID.IsZero() {
 		var status inimodel.Status
@@ -407,25 +389,6 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi Store ID
-	if !updatedProduct.Store.ID.IsZero() {
-		var store inimodel.Store
-		err := db.Collection("stores").FindOne(c.Context(), bson.M{"_id": updatedProduct.Store.ID}).Decode(&store)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "Store ID not found.",
-			})
-		}
-		updatedProduct.Store.StoreName = store.StoreName
-		updatedProduct.Store.Address = store.Address
-	} else {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Store ID is required.",
-		})
-	}
-
 	// Validasi Status ID
 	if !updatedProduct.Status.ID.IsZero() {
 		var status inimodel.Status
@@ -459,11 +422,8 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		"message":       "Product data updated successfully.",
 		"product_id":    productID.Hex(),
 		"category_id":   updatedProduct.Category.ID.Hex(),
-		"store_id":      updatedProduct.Store.ID.Hex(),
 		"status_id":     updatedProduct.Status.ID.Hex(),
 		"category_name": updatedProduct.Category.CategoryName,
-		"store_name":    updatedProduct.Store.StoreName,
-		"address":       updatedProduct.Store.Address,
 		"status_name":   updatedProduct.Status.Status,
 	})
 }
