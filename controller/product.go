@@ -227,7 +227,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi user ID
+	// Validasi store ID diambil dari users collection
 	if !productdata.User.ID.IsZero() {
 		var user inimodel.Users
 		err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": productdata.User.ID}).Decode(&user)
@@ -237,9 +237,29 @@ func InsertDataProduct(c *fiber.Ctx) error {
 				"message": "User ID not found.",
 			})
 		}
+
+		// Validasi apakah user memiliki store
+		if user.Store.ID.IsZero() {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"status":  http.StatusBadRequest,
+				"message": "User does not have a valid store ID.",
+			})
+		}
+
+		// Ambil store detail berdasarkan store ID
+		var store inimodel.Store
+		err = db.Collection("stores").FindOne(c.Context(), bson.M{"_id": user.Store.ID}).Decode(&store)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Store ID not found.",
+			})
+		}
+
+		// Assign data store ke product
+		productdata.StoreName = store.StoreName
+		productdata.StoreAddress = store.Address
 		productdata.User.Username = user.Username
-		productdata.StoreName = user.Store.StoreName
-		productdata.StoreAddress = user.Store.Address
 	} else {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
@@ -341,6 +361,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	})
 }
 
+
 func UpdateDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var updatedProduct inimodel.Product
@@ -409,10 +430,29 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 				"message": "User ID not found.",
 			})
 		}
-		// Set store_name dan store_address dari Users
+
+		// Validasi apakah user memiliki store
+		if user.Store.ID.IsZero() {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"status":  http.StatusBadRequest,
+				"message": "User does not have a valid store ID.",
+			})
+		}
+
+		// Ambil detail store dari koleksi stores
+		var store inimodel.Store
+		err = db.Collection("stores").FindOne(c.Context(), bson.M{"_id": user.Store.ID}).Decode(&store)
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"status":  http.StatusNotFound,
+				"message": "Store ID not found.",
+			})
+		}
+
+		// Set store_name dan store_address dari koleksi stores
 		updatedProduct.User.Username = user.Username
-		updatedProduct.StoreName = user.Store.StoreName
-		updatedProduct.StoreAddress = user.Store.Address
+		updatedProduct.StoreName = store.StoreName
+		updatedProduct.StoreAddress = store.Address
 	} else {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
@@ -443,6 +483,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		"store_address": updatedProduct.StoreAddress,
 	})
 }
+
 
 func DeleteProductByID(c *fiber.Ctx) error {
 	id := c.Params("id")
