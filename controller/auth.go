@@ -278,3 +278,54 @@ func GetProfile(c *fiber.Ctx) error {
 		"data":   user,
 	})
 }
+
+func UpdateUser(c *fiber.Ctx) error {
+	// Ambil token dari header untuk autentikasi
+	bearerToken := c.Get("Authorization")
+	sttArr := strings.Split(bearerToken, " ")
+	if len(sttArr) != 2 {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"status":  http.StatusUnauthorized,
+			"message": "Unauthorized",
+		})
+	}
+
+	// Verifikasi token JWT
+	tokenString := sttArr[1]
+	token, _ := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"status":  http.StatusUnauthorized,
+			"message": "Invalid token",
+		})
+	}
+
+	// Parse body untuk data yang akan diperbarui
+	var updateData map[string]interface{}
+	if err := c.BodyParser(&updateData); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid request body",
+		})
+	}
+
+	// Panggil fungsi UpdateUser di modul
+	collection := config.Ulbimongoconn.Collection("users")
+	updatedUser, err := cek.UpdateUser(collection, claims.UserID, updateData)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Failed to update profile",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"status":  http.StatusOK,
+		"message": "Profile updated successfully",
+		"data":    updatedUser,
+	})
+}

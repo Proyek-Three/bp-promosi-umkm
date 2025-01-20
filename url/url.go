@@ -23,6 +23,8 @@ func Web(page *fiber.App) {
 	page.Get("/users/profil", controller.GetUserProfile)
 	page.Get("/users", controller.GetAllUser)      
 	page.Get("/users/profile", controller.GetProfile) 
+	page.Put("/update/users/profile", controller.UpdateUser)
+
 
 
 	// page.Post("/register/admin", controller.RegisterAdmin)
