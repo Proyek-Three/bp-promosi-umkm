@@ -227,7 +227,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi store ID diambil dari users collection
+	// Validasi user ID dan ambil Store ID dari koleksi Users
 	if !productdata.User.ID.IsZero() {
 		var user inimodel.Users
 		err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": productdata.User.ID}).Decode(&user)
@@ -238,15 +238,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 			})
 		}
 
-		// Validasi apakah user memiliki store
-		if user.Store.ID.IsZero() {
-			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-				"status":  http.StatusBadRequest,
-				"message": "User does not have a valid store ID.",
-			})
-		}
-
-		// Ambil store detail berdasarkan store ID
+		// Ambil data store berdasarkan user.Store.ID
 		var store inimodel.Store
 		err = db.Collection("stores").FindOne(c.Context(), bson.M{"_id": user.Store.ID}).Decode(&store)
 		if err != nil {
@@ -256,10 +248,9 @@ func InsertDataProduct(c *fiber.Ctx) error {
 			})
 		}
 
-		// Assign data store ke product
+		productdata.User.Username = user.Username
 		productdata.StoreName = store.StoreName
 		productdata.StoreAddress = store.Address
-		productdata.User.Username = user.Username
 	} else {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
@@ -360,7 +351,6 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		"image_url":   imageURL,
 	})
 }
-
 
 func UpdateDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
@@ -483,7 +473,6 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		"store_address": updatedProduct.StoreAddress,
 	})
 }
-
 
 func DeleteProductByID(c *fiber.Ctx) error {
 	id := c.Params("id")
