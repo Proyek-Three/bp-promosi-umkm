@@ -256,6 +256,7 @@ if !productdata.User.ID.IsZero() {
 }
 
 
+
 	// Proses upload gambar tetap sama
 	file, err := c.FormFile("image")
 	if err != nil {
@@ -352,103 +353,166 @@ if !productdata.User.ID.IsZero() {
 
 func UpdateDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
-	var updatedProduct inimodel.Product
 
-	// Parse JSON input to struct
-	if err := c.BodyParser(&updatedProduct); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
-		})
-	}
-
-	// Validate product ID
-	productIDParam := c.Params("id")
-	productID, err := primitive.ObjectIDFromHex(productIDParam)
+	// Ambil ID produk dari parameter URL
+	id := c.Params("id")
+	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Invalid product ID.",
+			"message": "ID produk tidak valid.",
 		})
 	}
 
-	// Validate Category ID
-	if !updatedProduct.Category.ID.IsZero() {
+	// Parse body request ke struct Product
+	var product inimodel.Product
+	if err := c.BodyParser(&product); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Gagal memproses request body.",
+		})
+	}
+
+	// Validasi dan perbarui data Kategori
+	if !product.Category.ID.IsZero() {
 		var category inimodel.Category
-		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": updatedProduct.Category.ID}).Decode(&category)
+		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": product.Category.ID}).Decode(&category)
 		if err != nil {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
 				"status":  http.StatusNotFound,
-				"message": "Category ID not found.",
+				"message": "Kategori ID tidak ditemukan.",
 			})
 		}
-		updatedProduct.Category.CategoryName = category.CategoryName
+		product.Category.CategoryName = category.CategoryName
 	} else {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Category ID is required.",
+			"message": "Kategori ID diperlukan.",
 		})
 	}
 
-	// Validate Status ID
-	if !updatedProduct.Status.ID.IsZero() {
+	// Validasi dan perbarui data Status
+	if !product.Status.ID.IsZero() {
 		var status inimodel.Status
-		err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": updatedProduct.Status.ID}).Decode(&status)
+		err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": product.Status.ID}).Decode(&status)
 		if err != nil {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
 				"status":  http.StatusNotFound,
-				"message": "Status ID not found.",
+				"message": "Status ID tidak ditemukan.",
 			})
 		}
-		updatedProduct.Status.Status = status.Status
+		product.Status.Status = status.Status
 	} else {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Status ID is required.",
+			"message": "Status ID diperlukan.",
 		})
 	}
 
-	// Validate User ID and retrieve Store info
-	if !updatedProduct.User.ID.IsZero() {
+	// Validasi ID Pengguna dan otomatis set Store
+	if !product.User.ID.IsZero() {
 		var user inimodel.Users
-		err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": updatedProduct.User.ID}).Decode(&user)
+		err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": product.User.ID}).Decode(&user)
 		if err != nil {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{
 				"status":  http.StatusNotFound,
-				"message": "User ID not found.",
+				"message": "ID Pengguna tidak ditemukan.",
 			})
 		}
 
-		// Check if user has a valid store ID
-		if user.Store.ID.IsZero() {
-			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-				"status":  http.StatusBadRequest,
-				"message": "User does not have a valid store ID.",
-			})
+		// Memeriksa apakah store ada pada pengguna
+		if user.Store.ID.IsZero() || user.Store.StoreName == "" {
+			// Jika store tidak ada, gunakan nilai default
+			product.StoreName = "Default Store"
+			product.StoreAddress = "Unknown Address"
+		} else {
+			// Jika store ada, ambil data store dari pengguna
+			product.StoreName = user.Store.StoreName
+			product.StoreAddress = user.Store.Address
 		}
-
-		// Retrieve the store details from the stores collection
-		var store inimodel.Store
-		err = db.Collection("stores").FindOne(c.Context(), bson.M{"_id": user.Store.ID}).Decode(&store)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "Store ID not found.",
-			})
-		}
-
-		// Set store details in the product
-		updatedProduct.StoreName = store.StoreName
-		updatedProduct.StoreAddress = store.Address
 	} else {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "User ID is required.",
+			"message": "User ID diperlukan.",
 		})
 	}
 
-	// Update product data in the database
-	err = cek.UpdateProduct(db, "product", productID, updatedProduct)
+	// Proses upload gambar jika ada perubahan gambar
+	file, err := c.FormFile("image")
+	if err == nil {
+		// Jika ada gambar baru, proses upload ke GitHub
+		imageFile, err := file.Open()
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"status":  http.StatusInternalServerError,
+				"message": "Gagal membuka file gambar: " + err.Error(),
+			})
+		}
+		defer imageFile.Close()
+
+		imageData, err := ioutil.ReadAll(imageFile)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"status":  http.StatusInternalServerError,
+				"message": "Gagal membaca file gambar: " + err.Error(),
+			})
+		}
+
+		// Upload gambar ke GitHub
+		githubToken := os.Getenv("GH_ACCESS_TOKEN")
+		repoOwner := "Proyek-Three"
+		repoName := "images"
+		filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), product.ProductName)
+		uploadURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath)
+
+		encodedImage := base64.StdEncoding.EncodeToString(imageData)
+		payload := map[string]string{
+			"message": fmt.Sprintf("Update gambar untuk produk %s", product.ProductName),
+			"content": encodedImage,
+		}
+		payloadBytes, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest("PUT", uploadURL, bytes.NewReader(payloadBytes))
+		req.Header.Set("Authorization", "Bearer "+githubToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"status":  http.StatusInternalServerError,
+				"message": "Gagal mengupload gambar ke GitHub: " + err.Error(),
+			})
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			body, _ := ioutil.ReadAll(resp.Body)
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"status":  http.StatusInternalServerError,
+				"message": "Error dari GitHub API: " + string(body),
+			})
+		}
+
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"status":  http.StatusInternalServerError,
+				"message": "Gagal memproses respons GitHub API: " + err.Error(),
+			})
+		}
+		content, ok := result["content"].(map[string]interface{})
+		if !ok || content["download_url"] == nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"status":  http.StatusInternalServerError,
+				"message": "Respons GitHub API tidak memiliki download_url",
+			})
+		}
+		imageURL := content["download_url"].(string)
+		product.Image = imageURL
+	}
+
+	// Update data produk di database
+	err = cek.UpdateProduct(db, "product", objectID, product)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -456,20 +520,17 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return success response
+	// Response sukses
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status":        http.StatusOK,
-		"message":       "Product data updated successfully.",
-		"product_id":    productID.Hex(),
-		"category_id":   updatedProduct.Category.ID.Hex(),
-		"status_id":     updatedProduct.Status.ID.Hex(),
-		"user_id":       updatedProduct.User.ID.Hex(),
-		"category_name": updatedProduct.Category.CategoryName,
-		"status_name":   updatedProduct.Status.Status,
-		"store_name":    updatedProduct.StoreName,
-		"store_address": updatedProduct.StoreAddress,
+		"status":  http.StatusOK,
+		"message": "Data produk berhasil diperbarui.",
 	})
 }
+
+
+
+
+
 
 
 
