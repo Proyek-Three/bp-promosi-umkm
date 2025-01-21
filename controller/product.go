@@ -354,7 +354,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var updatedProduct inimodel.Product
 
-	// Parse JSON input ke struct
+	// Parse JSON input to struct
 	if err := c.BodyParser(&updatedProduct); err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -362,7 +362,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi ID produk
+	// Validate product ID
 	productIDParam := c.Params("id")
 	productID, err := primitive.ObjectIDFromHex(productIDParam)
 	if err != nil {
@@ -372,7 +372,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi Category ID
+	// Validate Category ID
 	if !updatedProduct.Category.ID.IsZero() {
 		var category inimodel.Category
 		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": updatedProduct.Category.ID}).Decode(&category)
@@ -390,7 +390,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi Status ID
+	// Validate Status ID
 	if !updatedProduct.Status.ID.IsZero() {
 		var status inimodel.Status
 		err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": updatedProduct.Status.ID}).Decode(&status)
@@ -408,7 +408,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi User ID
+	// Validate User ID and retrieve Store info
 	if !updatedProduct.User.ID.IsZero() {
 		var user inimodel.Users
 		err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": updatedProduct.User.ID}).Decode(&user)
@@ -419,7 +419,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 			})
 		}
 
-		// Validasi apakah user memiliki store
+		// Check if user has a valid store ID
 		if user.Store.ID.IsZero() {
 			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 				"status":  http.StatusBadRequest,
@@ -427,7 +427,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 			})
 		}
 
-		// Ambil detail store dari koleksi stores
+		// Retrieve the store details from the stores collection
 		var store inimodel.Store
 		err = db.Collection("stores").FindOne(c.Context(), bson.M{"_id": user.Store.ID}).Decode(&store)
 		if err != nil {
@@ -437,8 +437,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 			})
 		}
 
-		// Set store_name dan store_address dari koleksi stores
-		updatedProduct.User.Username = user.Username
+		// Set store details in the product
 		updatedProduct.StoreName = store.StoreName
 		updatedProduct.StoreAddress = store.Address
 	} else {
@@ -448,7 +447,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update data produk
+	// Update product data in the database
 	err = cek.UpdateProduct(db, "product", productID, updatedProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -457,7 +456,7 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return response berhasil
+	// Return success response
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":        http.StatusOK,
 		"message":       "Product data updated successfully.",
@@ -471,6 +470,8 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 		"store_address": updatedProduct.StoreAddress,
 	})
 }
+
+
 
 func DeleteProductByID(c *fiber.Ctx) error {
 	id := c.Params("id")
