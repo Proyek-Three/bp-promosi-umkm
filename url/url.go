@@ -21,11 +21,9 @@ func Web(page *fiber.App) {
 	page.Post("/users/register", controller.Register)
 	page.Post("/users/login", controller.Login)
 	page.Get("/users/profil", controller.GetUserProfile)
-	page.Get("/users", controller.GetAllUser)      
-	page.Get("/users/profile", controller.GetProfile) 
+	page.Get("/users", controller.GetAllUser)
+	page.Get("/users/profile", controller.GetProfile)
 	page.Put("/update/users/profile", controller.UpdateUser)
-
-
 
 	// page.Post("/register/admin", controller.RegisterAdmin)
 	// page.Post("/admin/login", controller.LoginAdmin)
@@ -37,7 +35,7 @@ func Web(page *fiber.App) {
 	page.Get("/product/:id", controller.GetProductID)                                    //menampilkan data product berdasarkan id
 	page.Put("/update/product/:id", controller.JWTAuth, controller.UpdateDataProduct)    //update data product
 	page.Delete("/product/delete/:id", controller.JWTAuth, controller.DeleteProductByID) //delete data product
-	page.Put("/products/:id/status", controller.UpdateProductStatus)
+	// page.Put("/products/:id/status", controller.UpdateProductStatus)
 	// Menambahkan route dengan JWTAuth sebagai middleware
 	page.Get("/product-seller", controller.JWTAuth, controller.GetProductsByUser)
 

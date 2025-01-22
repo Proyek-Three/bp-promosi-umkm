@@ -222,36 +222,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	}
 	productdata.Status.Status = status.Status
 
-	/// Validasi user ID dan ambil Store dari Users
-	if !productdata.User.ID.IsZero() {
-		var user inimodel.Users
-		err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": productdata.User.ID}).Decode(&user)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "User ID not found.",
-			})
-		}
-
-		// Ambil store dari embedded document di Users
-		if user.Store.ID.IsZero() {
-			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-				"status":  http.StatusBadRequest,
-				"message": "Store data is missing for the user.",
-			})
-		}
-
-		productdata.StoreName = user.Store.StoreName
-		productdata.StoreAddress = user.Store.Address
-	} else {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "User ID is required.",
-		})
-	}
-
-	// Proses upload gambar tetap sama
-
+	// Proses upload gambar
 	file, err := c.FormFile("image")
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
@@ -465,81 +436,6 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":  http.StatusOK,
 		"message": "Data produk berhasil diperbarui.",
-	})
-}
-
-func UpdateProductStatus(c *fiber.Ctx) error {
-	db := config.Ulbimongoconn
-
-	// Ambil ID produk dari parameter URL
-	id := c.Params("id")
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "ID produk tidak valid.",
-		})
-	}
-
-	// Parse body request untuk mendapatkan status_id
-	var request struct {
-		StatusID string `json:"status_id"`
-	}
-	if err := c.BodyParser(&request); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Gagal memproses request body.",
-		})
-	}
-
-	// Validasi StatusID
-	statusObjectID, err := primitive.ObjectIDFromHex(request.StatusID)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Status ID tidak valid.",
-		})
-	}
-
-	// Validasi dan ambil data status dari database
-	var status inimodel.Status
-	err = db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": statusObjectID}).Decode(&status)
-	if err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"status":  http.StatusNotFound,
-			"message": "Status ID tidak ditemukan di database.",
-		})
-	}
-
-	// Cek apakah produk dengan ID tersebut ada
-	var product inimodel.Product
-	err = db.Collection("product").FindOne(c.Context(), bson.M{"_id": objectID}).Decode(&product)
-	if err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"status":  http.StatusNotFound,
-			"message": "Produk dengan ID tersebut tidak ditemukan.",
-		})
-	}
-
-	// Update status produk di database
-	update := bson.M{
-		"$set": bson.M{
-			"status.id":     status.ID,
-			"status.status": status.Status,
-		},
-	}
-	_, err = db.Collection("product").UpdateOne(c.Context(), bson.M{"_id": objectID}, update)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "Gagal memperbarui status produk.",
-		})
-	}
-
-	// Response sukses
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status":  http.StatusOK,
-		"message": "Status produk berhasil diperbarui.",
 	})
 }
 
