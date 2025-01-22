@@ -222,7 +222,6 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	}
 	productdata.Status.Status = status.Status
 
-<<<<<<< HEAD
 	/// Validasi user ID dan ambil Store dari Users
 	if !productdata.User.ID.IsZero() {
 		var user inimodel.Users
@@ -252,9 +251,7 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	}
 
 	// Proses upload gambar tetap sama
-=======
-	// Proses upload gambar
->>>>>>> ec42a5901a810d5462b22b70bfcdd004c7b3566e
+
 	file, err := c.FormFile("image")
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
@@ -471,7 +468,6 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 	})
 }
 
-<<<<<<< HEAD
 func UpdateProductStatus(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 
@@ -547,8 +543,6 @@ func UpdateProductStatus(c *fiber.Ctx) error {
 	})
 }
 
-=======
->>>>>>> ec42a5901a810d5462b22b70bfcdd004c7b3566e
 func DeleteProductByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
