@@ -2,11 +2,13 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strings"
@@ -21,6 +23,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+
 )
 
 func Homepage(c *fiber.Ctx) error {
@@ -94,12 +97,6 @@ func GetProductsByUser(c *fiber.Ctx) error {
 			})
 		}
 
-		// Hanya ambil id dan username dari User
-		product.User = inimodel.Users{
-			ID:       product.User.ID,
-			Username: product.User.Username,
-		}
-
 		// Menambahkan produk yang telah diubah ke dalam list
 		products = append(products, product)
 	}
@@ -161,185 +158,93 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
 	var productdata inimodel.Product
 
-	// Parse form data termasuk file gambar
+	// Parse data dari body
 	if err := c.BodyParser(&productdata); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
-		})
-	}
-
-	// Validasi field wajib
-	if productdata.ProductName == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Product name cannot be empty",
+			"message": "Invalid input: " + err.Error(),
 		})
 	}
 
-	if productdata.Description == "" {
+	// Validasi ID User
+	if productdata.User.ID.IsZero() {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Product description cannot be empty",
+			"message": "User ID is required",
 		})
 	}
-
-	if productdata.Price <= 0 {
+	var user inimodel.Users
+	if err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": productdata.User.ID}).Decode(&user); err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"status":  http.StatusNotFound,
+			"message": "User ID not found",
+		})
+	}
+	if user.Store.StoreName == "" || user.Store.Address == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Product price must be greater than zero",
+			"message": "Store data is incomplete for the user.",
 		})
 	}
+	productdata.User.Username = user.Username
+	productdata.StoreName = user.Store.StoreName
+	productdata.StoreAddress = user.Store.Address
 
-	// Validasi kategori ID
-	if !productdata.Category.ID.IsZero() {
-		var category inimodel.Category
-		err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "Category ID not found.",
-			})
-		}
-		productdata.Category.CategoryName = category.CategoryName
-	} else {
+	// Validasi ID Category
+	if productdata.Category.ID.IsZero() {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
 			"message": "Category ID is required",
 		})
 	}
+	var category inimodel.Category
+	if err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category); err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"status":  http.StatusNotFound,
+			"message": "Category ID not found",
+		})
+	}
+	productdata.Category.CategoryName = category.CategoryName
 
-	// Validasi status ID
-	if !productdata.Status.ID.IsZero() {
-		var status inimodel.Status
-		err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": productdata.Status.ID}).Decode(&status)
-		if err != nil {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{
-				"status":  http.StatusNotFound,
-				"message": "Status ID not found.",
-			})
-		}
-		productdata.Status.Status = status.Status
-	} else {
+	// Validasi ID Status
+	if productdata.Status.ID.IsZero() {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
 			"message": "Status ID is required",
 		})
 	}
+	var status inimodel.Status
+	if err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": productdata.Status.ID}).Decode(&status); err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"status":  http.StatusNotFound,
+			"message": "Status ID not found",
+		})
+	}
+	productdata.Status.Status = status.Status
 
-	/// Validasi user ID dan ambil Store dari Users
-if !productdata.User.ID.IsZero() {
-    var user inimodel.Users
-    err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": productdata.User.ID}).Decode(&user)
-    if err != nil {
-        return c.Status(http.StatusNotFound).JSON(fiber.Map{
-            "status":  http.StatusNotFound,
-            "message": "User ID not found.",
-        })
-    }
-
-    // Ambil store dari embedded document di Users
-    if user.Store.ID.IsZero() {
-        return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-            "status":  http.StatusBadRequest,
-            "message": "Store data is missing for the user.",
-        })
-    }
-
-    productdata.StoreName = user.Store.StoreName
-    productdata.StoreAddress = user.Store.Address
-} else {
-    return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-        "status":  http.StatusBadRequest,
-        "message": "User ID is required.",
-    })
-}
-
-
-
-	// Proses upload gambar tetap sama
+	// Proses upload gambar
 	file, err := c.FormFile("image")
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Failed to get image file: " + err.Error(),
+			"message": "Image file is required: " + err.Error(),
 		})
 	}
-
-	imageFile, err := file.Open()
+	imageURL, err := UploadImageToGitHub(file, productdata.ProductName)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
-			"message": "Failed to open image file: " + err.Error(),
+			"message": err.Error(),
 		})
 	}
-	defer imageFile.Close()
-
-	imageData, err := ioutil.ReadAll(imageFile)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "Failed to read image file: " + err.Error(),
-		})
-	}
-
-	githubToken := os.Getenv("GH_ACCESS_TOKEN")
-	repoOwner := "Proyek-Three"
-	repoName := "images"
-	filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), productdata.ProductName)
-	uploadURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath)
-
-	encodedImage := base64.StdEncoding.EncodeToString(imageData)
-	payload := map[string]string{
-		"message": fmt.Sprintf("Add image for product %s", productdata.ProductName),
-		"content": encodedImage,
-	}
-	payloadBytes, _ := json.Marshal(payload)
-
-	req, _ := http.NewRequest("PUT", uploadURL, bytes.NewReader(payloadBytes))
-	req.Header.Set("Authorization", "Bearer "+githubToken)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "Failed to upload image to GitHub: " + err.Error(),
-		})
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "GitHub API error: " + string(body),
-		})
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "Failed to parse GitHub API response: " + err.Error(),
-		})
-	}
-	content, ok := result["content"].(map[string]interface{})
-	if !ok || content["download_url"] == nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": "GitHub API response missing download_url",
-		})
-	}
-	imageURL := content["download_url"].(string)
 	productdata.Image = imageURL
 
-	// Simpan data produk ke database
-	insertedID, err := cek.InsertProduct(db, "product", productdata)
+	// Simpan data produk
+	insertedID, err := InsertProduct(db, "product", productdata)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
-			"message": "Failed to insert product: " + err.Error(),
+			"message": "Failed to save product: " + err.Error(),
 		})
 	}
 
@@ -349,6 +254,58 @@ if !productdata.User.ID.IsZero() {
 		"inserted_id": insertedID,
 		"image_url":   imageURL,
 	})
+}
+
+func UploadImageToGitHub(file *multipart.FileHeader, productName string) (string, error) {
+	githubToken := os.Getenv("GH_ACCESS_TOKEN")
+	repoOwner := "Proyek-Three"
+	repoName := "images"
+	filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), productName)
+
+	fileContent, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("failed to open image file: %w", err)
+	}
+	defer fileContent.Close()
+
+	imageData, err := ioutil.ReadAll(fileContent)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image file: %w", err)
+	}
+
+	encodedImage := base64.StdEncoding.EncodeToString(imageData)
+	payload := map[string]string{
+		"message": fmt.Sprintf("Add image for product %s", productName),
+		"content": encodedImage,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest("PUT", fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath), bytes.NewReader(payloadBytes))
+	req.Header.Set("Authorization", "Bearer "+githubToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to upload image to GitHub: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf("GitHub API error: %s", body)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to parse GitHub API response: %w", err)
+	}
+
+	content, ok := result["content"].(map[string]interface{})
+	if !ok || content["download_url"] == nil {
+		return "", fmt.Errorf("GitHub API response missing download_url")
+	}
+
+	return content["download_url"].(string), nil
 }
 
 func UpdateDataProduct(c *fiber.Ctx) error {
@@ -527,13 +484,6 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 	})
 }
 
-
-
-
-
-
-
-
 func DeleteProductByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
@@ -563,4 +513,56 @@ func DeleteProductByID(c *fiber.Ctx) error {
 		"status":  http.StatusOK,
 		"message": fmt.Sprintf("Product data with id %s deleted successfully", id),
 	})
+}
+
+// INSERT PRODUCT
+func InsertProduct(db *mongo.Database, col string, product inimodel.Product) (insertedID primitive.ObjectID, err error) {
+	// Validasi ID kategori
+	if product.Category.ID.IsZero() {
+		return primitive.NilObjectID, fmt.Errorf("invalid category ID: cannot be empty")
+	}
+
+	// Validasi ID status
+	if product.Status.ID.IsZero() {
+		return primitive.NilObjectID, fmt.Errorf("invalid status ID: cannot be empty")
+	}
+
+	// Menyusun dokumen BSON untuk produk
+	productData := bson.M{
+		"product_name": product.ProductName,
+		"description":  product.Description,
+		"image":        product.Image,
+		"price":        product.Price,
+		"category": bson.M{
+			"_id":           product.Category.ID,
+			"category_name": product.Category.CategoryName,
+		},
+		"status": bson.M{
+			"_id":    product.Status.ID,
+			"status": product.Status.Status,
+		},
+		"user": bson.M{
+			"_id":      product.User.ID,
+			"username": product.User.Username,
+			"store": bson.M{
+				"store_name":    product.StoreName,
+				"store_address": product.StoreAddress,
+			},
+		},
+	}
+
+	// Menyisipkan dokumen ke MongoDB
+	collection := db.Collection(col)
+	result, err := collection.InsertOne(context.TODO(), productData)
+	if err != nil {
+		return primitive.NilObjectID, fmt.Errorf("failed to insert product: %w", err)
+	}
+
+	// Mendapatkan ID yang disisipkan
+	insertedID, ok := result.InsertedID.(primitive.ObjectID)
+	if !ok {
+		return primitive.NilObjectID, fmt.Errorf("failed to parse inserted ID")
+	}
+
+	return insertedID, nil
 }
