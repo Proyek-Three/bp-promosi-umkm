@@ -37,6 +37,7 @@ func Web(page *fiber.App) {
 	page.Get("/product/:id", controller.GetProductID)                                    //menampilkan data product berdasarkan id
 	page.Put("/update/product/:id", controller.JWTAuth, controller.UpdateDataProduct)    //update data product
 	page.Delete("/product/delete/:id", controller.JWTAuth, controller.DeleteProductByID) //delete data product
+	page.Put("/products/:id/status", controller.UpdateProductStatus)
 	// Menambahkan route dengan JWTAuth sebagai middleware
 	page.Get("/product-seller", controller.JWTAuth, controller.GetProductsByUser)
 
