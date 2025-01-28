@@ -1,6 +1,9 @@
 package controller
 
 import (
+	"context"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -10,6 +13,9 @@ import (
 	"github.com/Proyek-Three/bp-promosi-umkm/config"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var jwtKey = []byte("secret_key!234@!#$%")
@@ -279,8 +285,9 @@ func GetProfile(c *fiber.Ctx) error {
 	})
 }
 
+
+
 func UpdateUser(c *fiber.Ctx) error {
-	// Ambil token dari header untuk autentikasi
 	bearerToken := c.Get("Authorization")
 	sttArr := strings.Split(bearerToken, " ")
 	if len(sttArr) != 2 {
@@ -290,7 +297,6 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Verifikasi token JWT
 	tokenString := sttArr[1]
 	token, _ := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
@@ -303,7 +309,15 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Parse body untuk data yang akan diperbarui
+	// **Konversi UserID dari string ke ObjectID**
+	userID, err := primitive.ObjectIDFromHex(claims.UserID)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Invalid UserID format",
+		})
+	}
+
 	var updateData map[string]interface{}
 	if err := c.BodyParser(&updateData); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
@@ -312,9 +326,11 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Panggil fungsi UpdateUser di modul
-	collection := config.Ulbimongoconn.Collection("users")
-	updatedUser, err := cek.UpdateUser(collection, claims.UserID, updateData)
+	// Debugging: Print request body untuk cek apakah store_address ada
+	fmt.Println("Request Body:", updateData)
+
+	// Update user
+	updatedUser, err := cek.UpdateUser(userCollection, userID, updateData)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"status":  http.StatusInternalServerError,
@@ -323,9 +339,58 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
+	// **Auto-Update store di Collection Products**
+	// **Auto-Update store di Collection Products**
+if storeData, ok := updateData["store"].(map[string]interface{}); ok {
+    storeName, hasStoreName := storeData["store_name"].(string)
+    storeAddress, hasStoreAddress := storeData["address"].(string) // Ganti "address" menjadi "store_address"
+
+    updateFields := bson.M{}
+    if hasStoreName {
+        updateFields["user.store.store_name"] = storeName
+    }
+    if hasStoreAddress {
+        updateFields["user.store.store_address"] = storeAddress // Ganti "store_address"
+    }
+
+    // Debugging: Print updateFields untuk cek apakah store_address masuk
+    fmt.Println("Update Fields:", updateFields)
+
+    if len(updateFields) > 0 {
+        productFilter := bson.M{"user._id": userID}
+        productUpdate := bson.M{"$set": updateFields}
+
+        // Debugging: Print query update untuk cek apakah benar-benar dieksekusi
+        fmt.Println("Updating Products with Filter:", productFilter)
+        fmt.Println("Updating Products with Data:", productUpdate)
+
+        _, err := productCollection.UpdateMany(context.Background(), productFilter, productUpdate)
+        if err != nil {
+            return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+                "status":  http.StatusInternalServerError,
+                "message": "Failed to update products store details",
+                "error":   err.Error(),
+            })
+        }
+    }
+}
+
+
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":  http.StatusOK,
-		"message": "Profile updated successfully",
+		"message": "Profile and related products updated successfully",
 		"data":    updatedUser,
 	})
+}
+
+var userCollection *mongo.Collection
+var productCollection *mongo.Collection
+
+func InitCollections() {
+	if config.Ulbimongoconn == nil {
+		log.Fatal("Database connection is not initialized")
+	}
+
+	userCollection = config.Ulbimongoconn.Collection("users")
+	productCollection = config.Ulbimongoconn.Collection("product")
 }

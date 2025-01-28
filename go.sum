@@ -11,6 +11,8 @@ github.com/KyleBanks/depth v1.2.1 h1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc
 github.com/KyleBanks/depth v1.2.1/go.mod h1:jzSb9d0L43HxTQfT+oSA1EEp2q+ne2uh6XgeJcm8brE=
 github.com/Proyek-Three/be-promosi-umkm v0.8.4 h1:+3hZ+BEjkGOCucfC0MfsbZHzs0dncVLgNhYtnkozKmQ=
 github.com/Proyek-Three/be-promosi-umkm v0.8.4/go.mod h1:+NtFYnX8d6Kz/bbBZZNpLFEOso9+h+tXiTVuYrJyQuU=
+github.com/Proyek-Three/be-promosi-umkm v0.8.5 h1:LFS/CpW7qq1pcF5V+CXMhNNnf78p8u7B9gmJ8gYSHYM=
+github.com/Proyek-Three/be-promosi-umkm v0.8.5/go.mod h1:+NtFYnX8d6Kz/bbBZZNpLFEOso9+h+tXiTVuYrJyQuU=
 github.com/aiteung/atdb v0.1.7 h1:EV7vk5ld8i1wlrzf9N3FGDcvYvQz0dCnb0m2WCbRFOk=
 github.com/aiteung/atdb v0.1.7/go.mod h1:pxLum1XaWHcrspqu3n8zHKix2h5czOIiwAgIMKl3cX0=
 github.com/aiteung/atmodel v0.0.4 h1:jz0/jPfVjiNxMGaP8Rfl+14cgJZ8uu1vg3a46L/nzBo=

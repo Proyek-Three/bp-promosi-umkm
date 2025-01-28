@@ -17,8 +17,6 @@ var DBUlbimongoinfo = atdb.DBInfo{
 	DBName:   "proyek3",
 }
 
-var Ulbimongoconn = atdb.MongoConnect(DBUlbimongoinfo)
-
 var Usertables = [4]whatsauth.LoginInfo{mhs, dosen, user, user1}
 
 var mhs = whatsauth.LoginInfo{
@@ -56,3 +54,4 @@ var user1 = whatsauth.LoginInfo{
 	Uuid:     "besan_users",
 	Login:    "2md5",
 }
+
