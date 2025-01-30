@@ -24,6 +24,7 @@ func Web(page *fiber.App) {
 	page.Get("/users", controller.GetAllUser)
 	page.Get("/users/profile", controller.GetProfile)
 	page.Put("/update/users/profile", controller.UpdateUser)
+	page.Get("/productnumber", controller.GetProductsWithPhone)
 
 	// page.Post("/register/admin", controller.RegisterAdmin)
 	// page.Post("/admin/login", controller.LoginAdmin)
