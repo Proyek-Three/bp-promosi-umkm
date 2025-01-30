@@ -426,3 +426,59 @@ func InitCollections() {
 	userCollection = config.Ulbimongoconn.Collection("users")
 	productCollection = config.Ulbimongoconn.Collection("product")
 }
+
+
+func GetProducts(c *fiber.Ctx) error {
+    // Koneksi ke database
+    productCollection = config.Ulbimongoconn.Collection("product")
+
+    // Pipeline untuk Aggregation (JOIN dengan users)
+    pipeline := mongo.Pipeline{
+        {
+            {"$lookup", bson.D{
+                {"from", "users"},           // Koleksi users
+                {"localField", "user._id"},  // ID user di koleksi product
+                {"foreignField", "_id"},     // ID user di koleksi users
+                {"as", "user_data"},         // Simpan hasil lookup dalam user_data
+            }},
+        },
+        {
+            {"$unwind", bson.D{
+                {"path", "$user_data"}, // Pastikan user_data tidak berupa array
+                {"preserveNullAndEmptyArrays", false},
+            }},
+        },
+        {
+            {"$project", bson.D{ // Pilih field yang ingin dikembalikan
+                {"_id", 1},
+                {"category", 1},
+                {"status", 1},
+                {"user", 1},
+                {"product_name", 1},
+                {"description", 1},
+                {"image", 1},
+                {"price", 1},
+                {"user.phone_number", "$user_data.phone_number"}, // Tambahkan phone_number
+            }},
+        },
+    }
+
+    // Eksekusi Aggregation
+    cursor, err := productCollection.Aggregate(context.Background(), pipeline)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "Gagal mengambil produk",
+        })
+    }
+    defer cursor.Close(context.Background())
+
+    var products []bson.M
+    if err = cursor.All(context.Background(), &products); err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "Gagal membaca data produk",
+        })
+    }
+
+    // Kirim data produk ke frontend
+    return c.JSON(products)
+}
