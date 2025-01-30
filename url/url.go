@@ -61,7 +61,7 @@ func Web(page *fiber.App) {
 	//page.Get("/users", controller.GetAllUsers)
 	//page.Get("/user/:id", controller.GetUserByID)
 	//page.Put("/update/user/:id", controller.UpdateDataUser)
-	//page.Delete("/user/delete/:id", controller.DeleteUserByID)
+	page.Delete("/user/delete/:id", controller.DeleteUserByID)
 
 	// Status
 

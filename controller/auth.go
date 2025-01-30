@@ -85,7 +85,7 @@ func Register(c *fiber.Ctx) error {
 
 func GetUserProfile(c *fiber.Ctx) error {
 	// Ambil username dari query parameter atau header (sesuaikan dengan kebutuhan Anda)
-	username := c.Query("username") 
+	username := c.Query("username")
 	if username == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
@@ -285,8 +285,6 @@ func GetProfile(c *fiber.Ctx) error {
 	})
 }
 
-
-
 func UpdateUser(c *fiber.Ctx) error {
 	bearerToken := c.Get("Authorization")
 	sttArr := strings.Split(bearerToken, " ")
@@ -341,45 +339,75 @@ func UpdateUser(c *fiber.Ctx) error {
 
 	// **Auto-Update store di Collection Products**
 	// **Auto-Update store di Collection Products**
-if storeData, ok := updateData["store"].(map[string]interface{}); ok {
-    storeName, hasStoreName := storeData["store_name"].(string)
-    storeAddress, hasStoreAddress := storeData["address"].(string) // Ganti "address" menjadi "store_address"
+	if storeData, ok := updateData["store"].(map[string]interface{}); ok {
+		storeName, hasStoreName := storeData["store_name"].(string)
+		storeAddress, hasStoreAddress := storeData["address"].(string) // Ganti "address" menjadi "store_address"
 
-    updateFields := bson.M{}
-    if hasStoreName {
-        updateFields["user.store.store_name"] = storeName
-    }
-    if hasStoreAddress {
-        updateFields["user.store.store_address"] = storeAddress // Ganti "store_address"
-    }
+		updateFields := bson.M{}
+		if hasStoreName {
+			updateFields["user.store.store_name"] = storeName
+		}
+		if hasStoreAddress {
+			updateFields["user.store.store_address"] = storeAddress // Ganti "store_address"
+		}
 
-    // Debugging: Print updateFields untuk cek apakah store_address masuk
-    fmt.Println("Update Fields:", updateFields)
+		// Debugging: Print updateFields untuk cek apakah store_address masuk
+		fmt.Println("Update Fields:", updateFields)
 
-    if len(updateFields) > 0 {
-        productFilter := bson.M{"user._id": userID}
-        productUpdate := bson.M{"$set": updateFields}
+		if len(updateFields) > 0 {
+			productFilter := bson.M{"user._id": userID}
+			productUpdate := bson.M{"$set": updateFields}
 
-        // Debugging: Print query update untuk cek apakah benar-benar dieksekusi
-        fmt.Println("Updating Products with Filter:", productFilter)
-        fmt.Println("Updating Products with Data:", productUpdate)
+			// Debugging: Print query update untuk cek apakah benar-benar dieksekusi
+			fmt.Println("Updating Products with Filter:", productFilter)
+			fmt.Println("Updating Products with Data:", productUpdate)
 
-        _, err := productCollection.UpdateMany(context.Background(), productFilter, productUpdate)
-        if err != nil {
-            return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-                "status":  http.StatusInternalServerError,
-                "message": "Failed to update products store details",
-                "error":   err.Error(),
-            })
-        }
-    }
-}
-
+			_, err := productCollection.UpdateMany(context.Background(), productFilter, productUpdate)
+			if err != nil {
+				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+					"status":  http.StatusInternalServerError,
+					"message": "Failed to update products store details",
+					"error":   err.Error(),
+				})
+			}
+		}
+	}
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":  http.StatusOK,
 		"message": "Profile and related products updated successfully",
 		"data":    updatedUser,
+	})
+}
+
+func DeleteUserByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": "Wrong parameter",
+		})
+	}
+
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid id parameter",
+		})
+	}
+
+	err = cek.DeleteUserByID(objID, config.Ulbimongoconn, "users")
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": fmt.Sprintf("Error deleting data for id %s", id),
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"status":  http.StatusOK,
+		"message": fmt.Sprintf("User data with id %s deleted successfully", id),
 	})
 }
 
