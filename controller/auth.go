@@ -307,7 +307,7 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// **Konversi UserID dari string ke ObjectID**
+	// Konversi UserID dari string ke ObjectID
 	userID, err := primitive.ObjectIDFromHex(claims.UserID)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -324,7 +324,7 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Debugging: Print request body untuk cek apakah store_address ada
+	// Debugging: Print request body
 	fmt.Println("Request Body:", updateData)
 
 	// Update user
@@ -337,39 +337,42 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// **Auto-Update store di Collection Products**
-	// **Auto-Update store di Collection Products**
-	if storeData, ok := updateData["store"].(map[string]interface{}); ok {
-		storeName, hasStoreName := storeData["store_name"].(string)
-		storeAddress, hasStoreAddress := storeData["address"].(string) // Ganti "address" menjadi "store_address"
+	// Auto-Update store dan username di Collection Products
+	updateFields := bson.M{}
 
-		updateFields := bson.M{}
-		if hasStoreName {
+	// Update store details
+	if storeData, ok := updateData["store"].(map[string]interface{}); ok {
+		if storeName, hasStoreName := storeData["store_name"].(string); hasStoreName {
 			updateFields["user.store.store_name"] = storeName
 		}
-		if hasStoreAddress {
-			updateFields["user.store.store_address"] = storeAddress // Ganti "store_address"
+		if storeAddress, hasStoreAddress := storeData["address"].(string); hasStoreAddress {
+			updateFields["user.store.address"] = storeAddress
 		}
+	}
 
-		// Debugging: Print updateFields untuk cek apakah store_address masuk
-		fmt.Println("Update Fields:", updateFields)
+	// Update username jika ada perubahan
+	if username, hasUsername := updateData["username"].(string); hasUsername {
+		updateFields["user.username"] = username
+	}
 
-		if len(updateFields) > 0 {
-			productFilter := bson.M{"user._id": userID}
-			productUpdate := bson.M{"$set": updateFields}
+	// Debugging: Print updateFields
+	fmt.Println("Update Fields:", updateFields)
 
-			// Debugging: Print query update untuk cek apakah benar-benar dieksekusi
-			fmt.Println("Updating Products with Filter:", productFilter)
-			fmt.Println("Updating Products with Data:", productUpdate)
+	if len(updateFields) > 0 {
+		productFilter := bson.M{"user._id": userID}
+		productUpdate := bson.M{"$set": updateFields}
 
-			_, err := productCollection.UpdateMany(context.Background(), productFilter, productUpdate)
-			if err != nil {
-				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-					"status":  http.StatusInternalServerError,
-					"message": "Failed to update products store details",
-					"error":   err.Error(),
-				})
-			}
+		// Debugging: Print query update
+		fmt.Println("Updating Products with Filter:", productFilter)
+		fmt.Println("Updating Products with Data:", productUpdate)
+
+		_, err := productCollection.UpdateMany(context.Background(), productFilter, productUpdate)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"status":  http.StatusInternalServerError,
+				"message": "Failed to update products store details",
+				"error":   err.Error(),
+			})
 		}
 	}
 
@@ -379,6 +382,7 @@ func UpdateUser(c *fiber.Ctx) error {
 		"data":    updatedUser,
 	})
 }
+
 
 func DeleteUserByID(c *fiber.Ctx) error {
 	id := c.Params("id")
