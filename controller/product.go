@@ -23,7 +23,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-
 )
 
 func Homepage(c *fiber.Ctx) error {
@@ -183,12 +182,19 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	if user.Store.StoreName == "" || user.Store.Address == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
-			"message": "Store data is incomplete for the user.",
+			"message": "Store data is incomplete for the user. StoreName: " + user.Store.StoreName + ", Address: " + user.Store.Address,
 		})
 	}
 	productdata.User.Username = user.Username
 	productdata.StoreName = user.Store.StoreName
 	productdata.StoreAddress = user.Store.Address
+
+	if productdata.StoreAddress == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Store address is empty after retrieval.",
+		})
+	}
 
 	// Validasi ID Category
 	if productdata.Category.ID.IsZero() {
@@ -578,7 +584,6 @@ func UpdateProduct(db *mongo.Database, col string, productID primitive.ObjectID,
 	fmt.Printf("Successfully updated product ID: %s\n", productID.Hex())
 	return nil
 }
-
 
 func UpdateProductStatus(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
