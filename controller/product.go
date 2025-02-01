@@ -159,54 +159,60 @@ func InsertDataProduct(c *fiber.Ctx) error {
 
 	// Parse data dari body
 	if err := c.BodyParser(&productdata); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  fiber.StatusBadRequest,
 			"message": "Invalid input: " + err.Error(),
+		})
+	}
+
+	// Validasi Product Name
+	if productdata.ProductName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  fiber.StatusBadRequest,
+			"message": "Product name is required",
 		})
 	}
 
 	// Validasi ID User
 	if productdata.User.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  fiber.StatusBadRequest,
 			"message": "User ID is required",
 		})
 	}
 	var user inimodel.Users
 	if err := db.Collection("users").FindOne(c.Context(), bson.M{"_id": productdata.User.ID}).Decode(&user); err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"status":  http.StatusNotFound,
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":  fiber.StatusNotFound,
 			"message": "User ID not found",
 		})
 	}
+
+	// Debugging store data
+	fmt.Println("Store Data Retrieved:", user.Store.StoreName, user.Store.Address)
+
+	// Validasi Store Data
 	if user.Store.StoreName == "" || user.Store.Address == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Store data is incomplete for the user. StoreName: " + user.Store.StoreName + ", Address: " + user.Store.Address,
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  fiber.StatusBadRequest,
+			"message": "Store data is incomplete for the user.",
 		})
 	}
 	productdata.User.Username = user.Username
 	productdata.StoreName = user.Store.StoreName
 	productdata.StoreAddress = user.Store.Address
 
-	if productdata.StoreAddress == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Store address is empty after retrieval.",
-		})
-	}
-
 	// Validasi ID Category
 	if productdata.Category.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  fiber.StatusBadRequest,
 			"message": "Category ID is required",
 		})
 	}
 	var category inimodel.Category
 	if err := db.Collection("categories").FindOne(c.Context(), bson.M{"_id": productdata.Category.ID}).Decode(&category); err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"status":  http.StatusNotFound,
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":  fiber.StatusNotFound,
 			"message": "Category ID not found",
 		})
 	}
@@ -214,15 +220,15 @@ func InsertDataProduct(c *fiber.Ctx) error {
 
 	// Validasi ID Status
 	if productdata.Status.ID.IsZero() {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  fiber.StatusBadRequest,
 			"message": "Status ID is required",
 		})
 	}
 	var status inimodel.Status
 	if err := db.Collection("statuses").FindOne(c.Context(), bson.M{"_id": productdata.Status.ID}).Decode(&status); err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"status":  http.StatusNotFound,
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":  fiber.StatusNotFound,
 			"message": "Status ID not found",
 		})
 	}
@@ -231,36 +237,40 @@ func InsertDataProduct(c *fiber.Ctx) error {
 	// Proses upload gambar
 	file, err := c.FormFile("image")
 	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  fiber.StatusBadRequest,
 			"message": "Image file is required: " + err.Error(),
 		})
 	}
 	imageURL, err := UploadImageToGitHub(file, productdata.ProductName)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  fiber.StatusInternalServerError,
 			"message": err.Error(),
 		})
 	}
 	productdata.Image = imageURL
+	fmt.Println("Image URL:", imageURL)
 
 	// Simpan data produk
 	insertedID, err := InsertProduct(db, "product", productdata)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  fiber.StatusInternalServerError,
 			"message": "Failed to save product: " + err.Error(),
 		})
 	}
 
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status":      http.StatusOK,
-		"message":     "Product data saved successfully.",
-		"inserted_id": insertedID,
-		"image_url":   imageURL,
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":       fiber.StatusOK,
+		"message":      "Product data saved successfully.",
+		"inserted_id":  insertedID,
+		"store_name":   productdata.StoreName,
+		"store_address": productdata.StoreAddress,
+		"image_url":    imageURL,
 	})
 }
+
 
 func UploadImageToGitHub(file *multipart.FileHeader, productName string) (string, error) {
 	githubToken := os.Getenv("GH_ACCESS_TOKEN")
