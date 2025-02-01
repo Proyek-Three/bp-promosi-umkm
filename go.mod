@@ -3,7 +3,7 @@ module github.com/Proyek-Three/bp-promosi-umkm
 go 1.23.3
 
 require (
-	github.com/Proyek-Three/be-promosi-umkm v0.9.6
+	github.com/Proyek-Three/be-promosi-umkm v0.9.7
 	github.com/aiteung/atdb v0.1.7
 	github.com/aiteung/musik v0.0.5
 	github.com/gofiber/fiber/v2 v2.52.6
