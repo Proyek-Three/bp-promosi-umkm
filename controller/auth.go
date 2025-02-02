@@ -3,8 +3,10 @@ package controller
 import (
 	"context"
 	"fmt"
+	"html"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -28,6 +30,29 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
+// Sanitasi input untuk mencegah XSS
+func sanitizeInput(input string) string {
+	// Menggunakan HTML Escape untuk mencegah script injection
+	return html.EscapeString(input)
+}
+
+// Validasi format email menggunakan regex
+func isValidEmail(email string) bool {
+	// Regex untuk validasi email
+	emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	re := regexp.MustCompile(emailRegex)
+	return re.MatchString(email)
+}
+
+// Validasi format nomor telepon menggunakan regex
+func isValidPhoneNumber(phone string) bool {
+	// Regex untuk validasi phone number (misal: hanya angka, panjang 10-15 karakter)
+	phoneRegex := `^\+?[0-9]{10,15}$`
+	re := regexp.MustCompile(phoneRegex)
+	return re.MatchString(phone)
+}
+
+// Fungsi untuk register pengguna
 func Register(c *fiber.Ctx) error {
 	var dataRegis inimodel.Users
 
@@ -39,6 +64,15 @@ func Register(c *fiber.Ctx) error {
 		})
 	}
 
+	// Sanitasi semua input untuk mencegah XSS atau karakter berbahaya
+	dataRegis.Name = sanitizeInput(dataRegis.Name)
+	dataRegis.Username = sanitizeInput(dataRegis.Username)
+	dataRegis.Password = sanitizeInput(dataRegis.Password)
+	dataRegis.Email = sanitizeInput(dataRegis.Email)
+	dataRegis.PhoneNumber = sanitizeInput(dataRegis.PhoneNumber)
+	dataRegis.Store.StoreName = sanitizeInput(dataRegis.Store.StoreName)
+	dataRegis.Store.Address = sanitizeInput(dataRegis.Store.Address)
+
 	// Validasi semua field harus terisi
 	if dataRegis.Name == "" || dataRegis.Username == "" || dataRegis.Password == "" ||
 		dataRegis.Email == "" || dataRegis.PhoneNumber == "" || dataRegis.Store.StoreName == "" ||
@@ -46,6 +80,22 @@ func Register(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
 			"message": "All fields are required",
+		})
+	}
+
+	// Validasi email format
+	if !isValidEmail(dataRegis.Email) {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid email format",
+		})
+	}
+
+	// Validasi nomor telepon format
+	if !isValidPhoneNumber(dataRegis.PhoneNumber) {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid phone number format",
 		})
 	}
 
@@ -142,6 +192,45 @@ func Login(c *fiber.Ctx) error {
 			"message": "Username or email is required",
 		})
 	}
+
+	// Validasi bahwa username atau email tidak dalam format yang salah
+	if loginData.Username != "" {
+		// Cek apakah username mengandung karakter yang tidak diizinkan (hanya alphanumeric dan underscore yang diperbolehkan)
+		invalidUsernamePattern := `[^a-zA-Z0-9_]`
+		matched, err := regexp.MatchString(invalidUsernamePattern, loginData.Username)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"status":  http.StatusInternalServerError,
+				"message": "Error during username validation",
+			})
+		}
+		if matched {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"status":  http.StatusBadRequest,
+				"message": "Username can only contain alphanumeric characters and underscores (_)",
+			})
+		}
+	}
+
+	// Validasi bahwa email (jika ada) memiliki format yang benar
+	if loginData.Email != "" {
+		emailPattern := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+		matched, err := regexp.MatchString(emailPattern, loginData.Email)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"status":  http.StatusInternalServerError,
+				"message": "Error during email validation",
+			})
+		}
+		if !matched {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"status":  http.StatusBadRequest,
+				"message": "Invalid email format",
+			})
+		}
+	}
+
+	// Validasi password tidak kosong
 	if loginData.Password == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"status":  http.StatusBadRequest,
@@ -168,7 +257,7 @@ func Login(c *fiber.Ctx) error {
 	if !cek.ValidatePassword(existingUser.Password, loginData.Password) {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"status":  http.StatusUnauthorized,
-			"message": "Invalid username,or password",
+			"message": "Invalid username, or password",
 		})
 	}
 
@@ -383,7 +472,6 @@ func UpdateUser(c *fiber.Ctx) error {
 	})
 }
 
-
 func DeleteUserByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
@@ -427,7 +515,6 @@ func InitCollections() {
 	productCollection = config.Ulbimongoconn.Collection("product")
 }
 
-
 func GetProductsWithPhone(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -464,4 +551,51 @@ func GetProductsWithPhone(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(products)
+}
+
+// Fungsi untuk menangani redirect
+func RedirectHandler(c *fiber.Ctx) error {
+	// Mendapatkan parameter redirect dari query string
+	redirectURL := c.Query("redirect")
+
+	// Daftar URL yang sah (whitelist)
+	validRedirects := []string{
+		// Landing page
+		"https://proyek-three.github.io/fe-promosi-umkm/index.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/products.html",
+		// Halaman login dan register
+		"https://proyek-three.github.io/fe-promosi-umkm/auth/register.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/auth/login.html",
+		// Halaman admin
+		"https://proyek-three.github.io/fe-promosi-umkm/Admin/dashboardadmin.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Admin/data-users/index.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Admin/data-produk/index.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Admin/data-produk/edit.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Admin/data-kategori/index.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Admin/data-kategori/tambah.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Admin/data-kategori/edit.html",
+		// Halaman seller
+		"https://proyek-three.github.io/fe-promosi-umkm/Users/dashboard.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Users/data-produk/index.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Users/data-produk/tambah.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Users/data-produk/edit.html",
+		"https://proyek-three.github.io/fe-promosi-umkm/Users/profile/index.html",
+	}
+
+	// Validasi apakah redirectURL termasuk dalam whitelist
+	isValid := false
+	for _, validURL := range validRedirects {
+		if redirectURL == validURL {
+			isValid = true
+			break
+		}
+	}
+
+	// Jika valid, lakukan pengalihan
+	if isValid {
+		return c.Redirect(redirectURL, fiber.StatusFound)
+	} else {
+		// Jika tidak valid, redirect ke halaman aman
+		return c.Redirect("https://mywebsite.com/default", fiber.StatusFound)
+	}
 }

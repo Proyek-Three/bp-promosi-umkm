@@ -72,6 +72,9 @@ func Web(page *fiber.App) {
 	page.Put("/update/status/:id", controller.UpdateStatus)
 	page.Delete("/status/delete/:id", controller.DeleteStatusByID)
 
+	// Redirect
+	page.Get("/redirect", controller.RedirectHandler)
+
 	// page.Use(middleware.JWTMiddleware)
 	page.Get("/dashboard", controller.DashboardPage)
 	// Rute untuk menampilkan Swagger UI dan mendefinisikan URL untuk file swagger.yaml
