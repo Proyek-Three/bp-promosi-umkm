@@ -23,7 +23,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-
 )
 
 func Homepage(c *fiber.Ctx) error {
@@ -187,8 +186,8 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 	productdata.User.Username = user.Username
-	productdata.StoreName = user.Store.StoreName
-	productdata.StoreAddress = user.Store.Address
+	productdata.Store.StoreName = user.Store.StoreName
+	productdata.Store.Address = user.Store.Address
 
 	// Validasi ID Category
 	if productdata.Category.ID.IsZero() {
@@ -401,8 +400,8 @@ func UpdateDataProduct(c *fiber.Ctx) error {
 
 	// Update data pada objek product
 	product.User.Username = user.Username
-	product.StoreName = user.Store.StoreName
-	product.StoreAddress = user.Store.Address
+	product.User.Store.StoreName = user.Store.StoreName
+	product.User.Store.Address = user.Store.Address
 
 	fmt.Println("Data produk yang akan diperbarui: ", product)
 
@@ -500,8 +499,8 @@ func InsertProduct(db *mongo.Database, col string, product inimodel.Product) (in
 			"_id":      product.User.ID,
 			"username": product.User.Username,
 			"store": bson.M{
-				"store_name":    product.StoreName,
-				"store_address": product.StoreAddress,
+				"store_name": product.User.Store.StoreName,
+				"address":    product.User.Store.Address,
 			},
 		},
 	}
@@ -555,8 +554,8 @@ func UpdateProduct(db *mongo.Database, col string, productID primitive.ObjectID,
 				"_id":      updatedProduct.User.ID,
 				"username": updatedProduct.User.Username,
 				"store": bson.M{
-					"store_name":    updatedProduct.StoreName,
-					"store_address": updatedProduct.StoreAddress,
+					"store_name": updatedProduct.User.Store.StoreName,
+					"address":    updatedProduct.User.Store.Address,
 				},
 			},
 		},
@@ -578,7 +577,6 @@ func UpdateProduct(db *mongo.Database, col string, productID primitive.ObjectID,
 	fmt.Printf("Successfully updated product ID: %s\n", productID.Hex())
 	return nil
 }
-
 
 func UpdateProductStatus(c *fiber.Ctx) error {
 	db := config.Ulbimongoconn
