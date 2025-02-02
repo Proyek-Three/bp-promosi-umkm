@@ -186,8 +186,8 @@ func InsertDataProduct(c *fiber.Ctx) error {
 		})
 	}
 	productdata.User.Username = user.Username
-	productdata.Store.StoreName = user.Store.StoreName
-	productdata.Store.Address = user.Store.Address
+	productdata.User.Store.StoreName = user.Store.StoreName
+	productdata.User.Store.Address = user.Store.Address
 
 	// Validasi ID Category
 	if productdata.Category.ID.IsZero() {
